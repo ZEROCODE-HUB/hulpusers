@@ -1,0 +1,229 @@
+name: iOS TestFlight - Hulp
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_name:
+        description: "CFBundleShortVersionString (ej: 1.2.0)"
+        required: false
+        type: string
+      build_number:
+        description: "CFBundleVersion (ej: 42)"
+        required: false
+        type: string
+
+jobs:
+  build-and-upload:
+    runs-on: macos-latest
+    env:
+      BUNDLE_ID: com.hulp.hulp
+      APPLE_TEAM_ID: 7D2MKM79GM
+      APPSTORE_ISSUER_ID: 85e32ae7-0d36-4a53-8710-d4b9ed2e2bc5
+      APPSTORE_API_KEY_ID: R65HQK7Q6S
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Create environment file
+        env:
+          ENVIRONMENT_JSON: ${{ secrets.ENVIRONMENT_JSON }}
+        run: |
+          mkdir -p assets/environment_values
+          echo "$ENVIRONMENT_JSON" > assets/environment_values/environment.json
+
+      - name: Generate launcher icons
+        run: dart run flutter_launcher_icons
+
+      - name: Setup signing assets
+        env:
+          IOS_DISTRIBUTION_CERT_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}
+          IOS_DISTRIBUTION_CERT_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERT_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          CERT_PATH="$RUNNER_TEMP/ios_distribution.p12"
+          PROFILE_PATH="$RUNNER_TEMP/app_store.mobileprovision"
+          PROFILE_PLIST="$RUNNER_TEMP/profile.plist"
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+
+          decode_base64() {
+            if base64 --help 2>&1 | grep -q -- "--decode"; then
+              base64 --decode
+            else
+              base64 -D
+            fi
+          }
+
+          echo -n "$IOS_DISTRIBUTION_CERT_BASE64" | decode_base64 > "$CERT_PATH"
+          echo -n "$IOS_PROVISIONING_PROFILE_BASE64" | decode_base64 > "$PROFILE_PATH"
+          security cms -D -i "$PROFILE_PATH" > "$PROFILE_PLIST"
+
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" "$PROFILE_PLIST")
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c "Print Name" "$PROFILE_PLIST")
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$IOS_DISTRIBUTION_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" "$HOME/Library/Keychains/login.keychain-db"
+          security default-keychain -d user -s "$KEYCHAIN_PATH"
+
+          {
+            echo "PROFILE_NAME=$PROFILE_NAME"
+            echo "KEYCHAIN_PATH=$KEYCHAIN_PATH"
+          } >> "$GITHUB_ENV"
+
+      - name: Setup App Store Connect API Key
+        env:
+          APPSTORE_API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          API_KEY_DIR="$HOME/.appstoreconnect/private_keys"
+          mkdir -p "$API_KEY_DIR"
+          API_KEY_PATH="$API_KEY_DIR/AuthKey_${APPSTORE_API_KEY_ID}.p8"
+          echo -n "$APPSTORE_API_PRIVATE_KEY" > "$API_KEY_PATH"
+          echo "API_KEY_PATH=$API_KEY_PATH" >> "$GITHUB_ENV"
+
+      - name: Add Push Notifications entitlement
+        run: |
+          set -euo pipefail
+          ENTITLEMENTS_PATH="ios/Runner/Runner.entitlements"
+          if [ ! -f "$ENTITLEMENTS_PATH" ]; then
+            cat > "$ENTITLEMENTS_PATH" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>aps-environment</key>
+            <string>production</string>
+          </dict>
+          </plist>
+          EOF
+          fi
+
+      - name: Force manual signing in Xcode
+        run: |
+          set -euo pipefail
+          cd ios
+          sed -i '' 's/CODE_SIGN_STYLE = Automatic/CODE_SIGN_STYLE = Manual/g' Runner.xcodeproj/project.pbxproj
+          sed -i '' "s/DEVELOPMENT_TEAM = \"\"/DEVELOPMENT_TEAM = ${APPLE_TEAM_ID}/g" Runner.xcodeproj/project.pbxproj
+          sed -i '' "s/DEVELOPMENT_TEAM = ;/DEVELOPMENT_TEAM = ${APPLE_TEAM_ID};/g" Runner.xcodeproj/project.pbxproj
+          cd ..
+
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install
+          cd ..
+
+      - name: Set build name and number
+        run: |
+          BUILD_NAME="${{ github.event.inputs.build_name }}"
+          BUILD_NUMBER="${{ github.event.inputs.build_number }}"
+
+          if [[ -n "$BUILD_NAME" ]]; then
+            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $BUILD_NAME" ios/Runner/Info.plist
+          fi
+          if [[ -n "$BUILD_NUMBER" ]]; then
+            /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" ios/Runner/Info.plist
+          fi
+
+      - name: Create export options
+        run: |
+          set -euo pipefail
+          EXPORT_OPTIONS_PATH="$RUNNER_TEMP/ExportOptions.plist"
+          cat > "$EXPORT_OPTIONS_PATH" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>signingCertificate</key>
+            <string>Apple Distribution</string>
+            <key>teamID</key>
+            <string>${APPLE_TEAM_ID}</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>${BUNDLE_ID}</key>
+              <string>${PROFILE_NAME}</string>
+            </dict>
+            <key>uploadSymbols</key>
+            <true/>
+            <key>compileBitcode</key>
+            <false/>
+          </dict>
+          </plist>
+          EOF
+          echo "EXPORT_OPTIONS_PATH=$EXPORT_OPTIONS_PATH" >> "$GITHUB_ENV"
+
+      - name: Archive with xcodebuild
+        run: |
+          set -euo pipefail
+          ARCHIVE_PATH="$RUNNER_TEMP/Runner.xcarchive"
+
+          xcodebuild archive \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath "$ARCHIVE_PATH" \
+            -destination "generic/platform=iOS" \
+            CODE_SIGN_STYLE=Manual \
+            "CODE_SIGN_IDENTITY=Apple Distribution" \
+            "PROVISIONING_PROFILE_SPECIFIER=$PROFILE_NAME" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH" \
+            -allowProvisioningUpdates \
+            -authenticationKeyIssuerID "$APPSTORE_ISSUER_ID" \
+            -authenticationKeyID "$APPSTORE_API_KEY_ID" \
+            -authenticationKeyPath "$API_KEY_PATH"
+
+          echo "ARCHIVE_PATH=$ARCHIVE_PATH" >> "$GITHUB_ENV"
+
+      - name: Export IPA
+        run: |
+          set -euo pipefail
+          IPA_DIR="$RUNNER_TEMP/ipa"
+          mkdir -p "$IPA_DIR"
+
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportOptionsPlist "$EXPORT_OPTIONS_PATH" \
+            -exportPath "$IPA_DIR" \
+            OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH" \
+            -allowProvisioningUpdates \
+            -authenticationKeyIssuerID "$APPSTORE_ISSUER_ID" \
+            -authenticationKeyID "$APPSTORE_API_KEY_ID" \
+            -authenticationKeyPath "$API_KEY_PATH"
+
+          IPA_PATH=$(find "$IPA_DIR" -maxdepth 1 -name "*.ipa" | head -n 1)
+          if [[ -z "$IPA_PATH" ]]; then
+            echo "No se encontro IPA en $IPA_DIR"
+            exit 1
+          fi
+          echo "IPA_PATH=$IPA_PATH" >> "$GITHUB_ENV"
+
+      - name: Upload to TestFlight
+        uses: apple-actions/upload-testflight-build@v3
+        with:
+          app-path: ${{ env.IPA_PATH }}
+          issuer-id: ${{ env.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ env.APPSTORE_API_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}

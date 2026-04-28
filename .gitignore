@@ -1,0 +1,14 @@
+# Flutter/Dart
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub/
+.pub-cache/
+
+# Android signing - never commit keystores or passwords
+android/app/*.jks
+android/app/*.keystore
+
+# Environment credentials - never commit API keys
+assets/environment_values/environment*.json
