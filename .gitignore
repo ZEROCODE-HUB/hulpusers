@@ -13,5 +13,4 @@ android/app/*.keystore
 # Environment credentials - never commit API keys
 assets/environment_values/environment*.json
 
-# Spec Driven Development docs - generados localmente, no van al repo
-SPEC_*.md
+# Los specs van al repo dentro de docs/ para mantener historial por commits

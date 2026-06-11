@@ -5,7 +5,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '/auth/supabase_auth/auth_util.dart';
 import '/backend/supabase/database/tables/servicios.dart';
+import '/backend/supabase/database/tables/solicitudes_servicio.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import 'booking_success_page.dart';
 import 'booking_args_store.dart';
@@ -108,31 +110,69 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
     }
     setState(() => _isSubmitting = true);
 
-    // TODO Sprint: reemplazar por Supabase insert
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      // Construir campo ubicacion: ciudad + dirección + complemento
+      final direccion = _addressCtrl.text.trim();
+      final complemento = _complementoCtrl.text.trim();
+      final ubicacionParts = [
+        _selectedCiudad!,
+        if (direccion.isNotEmpty) direccion,
+        if (complemento.isNotEmpty) complemento,
+      ];
+      final ubicacion = ubicacionParts.join('\n');
 
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
+      // Hora → formato HH:MM:SS para PostgresTime
+      final horaStr = '${_selectedTimeChip!}:00';
 
-    final solicitudId = _servicio != null
-        ? '#${_servicio!.id.substring(0, 6).toUpperCase()}'
-        : '#000000';
+      final row = await SolicitudesServicioTable().insert({
+        'usuario_id': currentUserUid,
+        'servicio_id': _servicio?.id,
+        'servicio_nombre': _serviceName.isEmpty ? null : _serviceName,
+        'descripcion': _serviceDesc.isEmpty ? null : _serviceDesc,
+        'precio': _servicio?.precio ?? 0.0,
+        'fecha': _selectedDate!.toIso8601String().split('T').first,
+        'hora': horaStr,
+        'ubicacion': ubicacion,
+        'estado': 'pendiente',
+      });
 
-    BookingArgsStore.set(BookingSuccessArgsData(
-      solicitudId: solicitudId,
-      serviceName: _serviceName,
-      serviceDesc: _serviceDesc,
-      servicePrice: _servicePrice,
-      serviceImage: _serviceImage,
-      fecha: _selectedDate!,
-      hora: _selectedTimeChip!,
-      ciudad: _selectedCiudad!,
-      direccion: _addressCtrl.text.trim(),
-      complemento: _complementoCtrl.text.trim().isEmpty
-          ? null
-          : _complementoCtrl.text.trim(),
-    ));
-    context.pushNamed(BookingSuccessPage.routeName);
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+
+      // Número de solicitud: ticket si existe, si no fragmento del UUID
+      final solicitudId = row.ticket != null
+          ? '#${row.ticket}'
+          : '#${row.id.substring(0, 6).toUpperCase()}';
+
+      BookingArgsStore.set(BookingSuccessArgsData(
+        solicitudId: solicitudId,
+        serviceName: _serviceName,
+        serviceDesc: _serviceDesc,
+        servicePrice: _servicePrice,
+        serviceImage: _serviceImage,
+        fecha: _selectedDate!,
+        hora: _selectedTimeChip!,
+        ciudad: _selectedCiudad!,
+        direccion: direccion,
+        complemento: complemento.isEmpty ? null : complemento,
+      ));
+      context.pushNamed(BookingSuccessPage.routeName);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'No se pudo agendar el servicio. Intenta de nuevo.',
+            style: GoogleFonts.inter(fontSize: 14, color: Colors.white),
+          ),
+          backgroundColor: _kError,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    }
   }
 
   Future<void> _pickDate() async {
