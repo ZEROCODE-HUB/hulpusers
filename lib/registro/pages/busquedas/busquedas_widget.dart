@@ -5,6 +5,8 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import '/index.dart';
+import '/registro/pages/service_booking/service_booking_form_page.dart';
+import '/registro/pages/service_booking/booking_args_store.dart';
 import 'dart:async';
 import 'package:easy_debounce/easy_debounce.dart';
 import 'package:flutter/material.dart';
@@ -585,30 +587,12 @@ class _BusquedasWidgetState extends State<BusquedasWidget> {
                                                                   onPressed:
                                                                       () async {
                                                                     if (loggedIn) {
+                                                                      ServiceStore
+                                                                          .set(listViewServiciosRow);
                                                                       context
                                                                           .pushNamed(
-                                                                        ChatiaWidget
+                                                                        ServiceBookingFormPage
                                                                             .routeName,
-                                                                        queryParameters:
-                                                                            {
-                                                                          'mensajeinicial':
-                                                                              serializeParam(
-                                                                            'Quiero agendar el servicio de: ${listViewServiciosRow.nombre}',
-                                                                            ParamType.String,
-                                                                          ),
-                                                                        }.withoutNulls,
-                                                                        extra: <String,
-                                                                            dynamic>{
-                                                                          '__transition_info__':
-                                                                              TransitionInfo(
-                                                                            hasTransition:
-                                                                                true,
-                                                                            transitionType:
-                                                                                PageTransitionType.fade,
-                                                                            duration:
-                                                                                Duration(milliseconds: 500),
-                                                                          ),
-                                                                        },
                                                                       );
                                                                     } else {
                                                                       context

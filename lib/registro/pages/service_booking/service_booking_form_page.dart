@@ -1,0 +1,804 @@
+// REQ-001 — ServiceBookingFormPage
+// UI fiel al mockup aprobado: SPEC_REQ-001_service-form.md
+// Datos del servicio vienen del backend vía ServiceStore (ServiciosRow).
+
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import '/backend/supabase/database/tables/servicios.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import 'booking_success_page.dart';
+import 'booking_args_store.dart';
+
+// ── Tokens de color (SPEC §1.1) ───────────────────────────────────────────────
+const _kPrimary = Color(0xFF1A3C2E);
+const _kPrimaryLight = Color(0xFFE8F5EE);
+const _kAccent = Color(0xFF2D8653);
+const _kBg = Color(0xFFFFFFFF);
+const _kSurface = Color(0xFFF7F8F9);
+const _kBorder = Color(0xFFE8E8E8);
+const _kBorderSelected = Color(0xFF2D8653);
+const _kTextPrimary = Color(0xFF0D0D0D);
+const _kTextSecondary = Color(0xFF757575);
+const _kError = Color(0xFFD32F2F);
+
+// ── Ciudades disponibles (IP-04) ──────────────────────────────────────────────
+const _kCiudades = [
+  'Bogotá, D.C.',
+  'Medellín',
+  'Cali',
+  'Barranquilla',
+  'Cartagena',
+  'Bucaramanga',
+  'Pereira',
+  'Manizales',
+];
+
+// ── Chips de hora predefinidos (SPEC §3.3) ───────────────────────────────────
+const _kTimeChips = ['08:00', '09:00', '10:00', '11:00'];
+
+class ServiceBookingFormPage extends StatefulWidget {
+  const ServiceBookingFormPage({super.key});
+
+  static const String routeName = 'serviceBookingForm';
+  static const String routePath = '/serviceBookingForm';
+
+  @override
+  State<ServiceBookingFormPage> createState() => _ServiceBookingFormState();
+}
+
+class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
+  /// Servicio cargado desde ServiceStore al entrar a la página.
+  ServiciosRow? _servicio;
+
+  DateTime? _selectedDate;
+  String? _selectedTimeChip;
+  String? _selectedCiudad;
+
+  final _addressCtrl = TextEditingController();
+  final _complementoCtrl = TextEditingController();
+
+  bool _isSubmitting = false;
+  final Map<String, String> _errors = {};
+
+  // Helpers de lectura del servicio
+  String get _serviceName => _servicio?.nombre ?? '';
+  String get _serviceDesc => _servicio?.descripcion ?? '';
+  String get _servicePrice {
+    final precio = _servicio?.precio;
+    if (precio == null) return '';
+    final formatted = precio
+        .toStringAsFixed(0)
+        .replaceAllMapped(
+            RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+    return 'Desde \$$formatted';
+  }
+
+  String get _serviceImage =>
+      (_servicio?.fotos.isNotEmpty ?? false) ? _servicio!.fotos.first : '';
+
+  @override
+  void initState() {
+    super.initState();
+    _servicio = ServiceStore.consume();
+  }
+
+  @override
+  void dispose() {
+    _addressCtrl.dispose();
+    _complementoCtrl.dispose();
+    super.dispose();
+  }
+
+  // ── Validación (SPEC §5.1) ────────────────────────────────────────────────
+  bool _validate() {
+    _errors.clear();
+    if (_selectedDate == null) _errors['date'] = 'La fecha es obligatoria';
+    if (_selectedTimeChip == null) _errors['time'] = 'La hora es obligatoria';
+    if (_selectedCiudad == null) _errors['ciudad'] = 'La ciudad es obligatoria';
+    // Dirección es opcional — no bloquea el submit (SPEC §5.1)
+    return _errors.isEmpty;
+  }
+
+  // ── Submit ────────────────────────────────────────────────────────────────
+  Future<void> _onAgendar() async {
+    if (!_validate()) {
+      setState(() {});
+      return;
+    }
+    setState(() => _isSubmitting = true);
+
+    // TODO Sprint: reemplazar por Supabase insert
+    await Future.delayed(const Duration(seconds: 1));
+
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+
+    final solicitudId = _servicio != null
+        ? '#${_servicio!.id.substring(0, 6).toUpperCase()}'
+        : '#000000';
+
+    BookingArgsStore.set(BookingSuccessArgsData(
+      solicitudId: solicitudId,
+      serviceName: _serviceName,
+      serviceDesc: _serviceDesc,
+      servicePrice: _servicePrice,
+      serviceImage: _serviceImage,
+      fecha: _selectedDate!,
+      hora: _selectedTimeChip!,
+      ciudad: _selectedCiudad!,
+      direccion: _addressCtrl.text.trim(),
+      complemento: _complementoCtrl.text.trim().isEmpty
+          ? null
+          : _complementoCtrl.text.trim(),
+    ));
+    context.pushNamed(BookingSuccessPage.routeName);
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: now.add(const Duration(days: 1)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+      locale: const Locale('es'),
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        _selectedDate = picked;
+        _errors.remove('date');
+      });
+    }
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (picked != null && mounted) {
+      final hh = picked.hour.toString().padLeft(2, '0');
+      final mm = picked.minute.toString().padLeft(2, '0');
+      setState(() {
+        _selectedTimeChip = '$hh:$mm';
+        _errors.remove('time');
+      });
+    }
+  }
+
+  String get _dateLabel {
+    if (_selectedDate == null) return 'Selecciona una fecha';
+    return DateFormat("EEEE, d 'de' MMMM 'de' yyyy", 'es')
+        .format(_selectedDate!);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _kBg,
+      appBar: AppBar(
+        backgroundColor: _kBg,
+        elevation: 0,
+        leading: const BackButton(color: _kTextPrimary),
+        title: Text(
+          'Hulp',
+          style: GoogleFonts.inter(
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
+            color: _kTextPrimary,
+          ),
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _ServiceCard(
+              name: _serviceName,
+              desc: _serviceDesc,
+              price: _servicePrice,
+              imageUrl: _serviceImage,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Agenda tu servicio',
+              style: GoogleFonts.inter(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: _kTextPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Cuéntanos cuándo y dónde necesitas el servicio.',
+              style: GoogleFonts.inter(fontSize: 14, color: _kTextSecondary),
+            ),
+            const SizedBox(height: 20),
+
+            // Fecha
+            const _FieldLabel('Fecha'),
+            const SizedBox(height: 6),
+            _PickerField(
+              value: _dateLabel,
+              icon: Icons.event_outlined,
+              hasError: _errors.containsKey('date'),
+              errorText: _errors['date'],
+              onTap: _pickDate,
+              trailing: const Icon(Icons.keyboard_arrow_right,
+                  color: _kAccent, size: 20),
+            ),
+            const SizedBox(height: 20),
+
+            // Hora
+            const _FieldLabel('Hora'),
+            const SizedBox(height: 6),
+            _TimeChipSelector(
+              selectedChip: _selectedTimeChip,
+              hasError: _errors.containsKey('time'),
+              errorText: _errors['time'],
+              onChipSelected: (val) => setState(() {
+                _selectedTimeChip = val;
+                _errors.remove('time');
+              }),
+              onMore: _pickTime,
+            ),
+            const SizedBox(height: 20),
+
+            // Ciudad
+            const _FieldLabel('Ciudad'),
+            const SizedBox(height: 6),
+            _CiudadDropdown(
+              value: _selectedCiudad,
+              hasError: _errors.containsKey('ciudad'),
+              errorText: _errors['ciudad'],
+              onChanged: (val) => setState(() {
+                _selectedCiudad = val;
+                _errors.remove('ciudad');
+              }),
+            ),
+            const SizedBox(height: 20),
+
+            // Dirección
+            const _FieldLabel('Dirección'),
+            const SizedBox(height: 6),
+            _AddressField(
+              controller: _addressCtrl,
+              hint: 'Calle 85 # 15-32, Oficina 502',
+            ),
+            const SizedBox(height: 20),
+
+            // Complemento
+            const _FieldLabel('Complemento / referencia (opcional)'),
+            const SizedBox(height: 6),
+            _ComplementoField(controller: _complementoCtrl),
+            const SizedBox(height: 32),
+
+            // Botón Agendar
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: _isSubmitting ? null : _onAgendar,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _kPrimary,
+                  disabledBackgroundColor: _kPrimary.withOpacity(0.6),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+                child: _isSubmitting
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        'Agendar',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+      bottomNavigationBar: const _HulpBottomNav(currentIndex: 0),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Sub-widgets
+// ══════════════════════════════════════════════════════════════════════════════
+
+class _ServiceCard extends StatelessWidget {
+  const _ServiceCard({
+    required this.name,
+    required this.desc,
+    required this.price,
+    required this.imageUrl,
+  });
+  final String name, desc, price, imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _kBorder),
+        boxShadow: const [
+          BoxShadow(blurRadius: 6, color: Color(0x0F000000), offset: Offset(0, 2)),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: imageUrl.isNotEmpty
+                ? Image.network(
+                    imageUrl,
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _placeholder(),
+                  )
+                : _placeholder(),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name,
+                    style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: _kAccent)),
+                const SizedBox(height: 4),
+                Text(desc,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                        fontSize: 13, color: _kTextSecondary)),
+                const SizedBox(height: 6),
+                Text(price,
+                    style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: _kAccent)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _placeholder() => Container(
+        width: 80,
+        height: 80,
+        color: _kPrimaryLight,
+        child: const Icon(Icons.cleaning_services_outlined,
+            color: _kAccent, size: 36),
+      );
+}
+
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Text(
+        text,
+        style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: _kTextSecondary),
+      );
+}
+
+class _PickerField extends StatelessWidget {
+  const _PickerField({
+    required this.value,
+    required this.icon,
+    required this.onTap,
+    this.hasError = false,
+    this.errorText,
+    this.trailing,
+  });
+  final String value;
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool hasError;
+  final String? errorText;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final isPlaceholder = value.startsWith('Selecciona');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            decoration: BoxDecoration(
+              color: _kSurface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: hasError ? _kError : _kBorder,
+                width: hasError ? 1.5 : 1.0,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: _kTextSecondary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(value,
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        color: isPlaceholder ? _kTextSecondary : _kTextPrimary,
+                      )),
+                ),
+                if (trailing != null) trailing!,
+              ],
+            ),
+          ),
+        ),
+        if (errorText != null) ...[
+          const SizedBox(height: 4),
+          Text(errorText!,
+              style: GoogleFonts.inter(fontSize: 12, color: _kError)),
+        ],
+      ],
+    );
+  }
+}
+
+class _TimeChipSelector extends StatelessWidget {
+  const _TimeChipSelector({
+    required this.selectedChip,
+    required this.hasError,
+    required this.onChipSelected,
+    required this.onMore,
+    this.errorText,
+  });
+  final String? selectedChip;
+  final bool hasError;
+  final String? errorText;
+  final ValueChanged<String> onChipSelected;
+  final VoidCallback onMore;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: _kSurface,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: hasError ? _kError : _kBorder,
+              width: hasError ? 1.5 : 1.0,
+            ),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.access_time_outlined,
+                  size: 20, color: _kTextSecondary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      ..._kTimeChips.map((t) => Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: _TimeChip(
+                              label: t,
+                              isSelected: selectedChip == t,
+                              onTap: () => onChipSelected(t),
+                            ),
+                          )),
+                      _TimeChip(
+                        label: 'Más',
+                        isSelected: selectedChip != null &&
+                            !_kTimeChips.contains(selectedChip),
+                        onTap: onMore,
+                        trailingIcon: Icons.keyboard_arrow_down,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (errorText != null) ...[
+          const SizedBox(height: 4),
+          Text(errorText!,
+              style: GoogleFonts.inter(fontSize: 12, color: _kError)),
+        ],
+      ],
+    );
+  }
+}
+
+class _TimeChip extends StatelessWidget {
+  const _TimeChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+    this.trailingIcon,
+  });
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final IconData? trailingIcon;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 42,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: isSelected ? _kPrimaryLight : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? _kBorderSelected : _kBorder,
+            width: isSelected ? 1.5 : 1.0,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight:
+                      isSelected ? FontWeight.w600 : FontWeight.w400,
+                  color: isSelected ? _kAccent : _kTextPrimary,
+                )),
+            if (trailingIcon != null) ...[
+              const SizedBox(width: 4),
+              Icon(trailingIcon,
+                  size: 16,
+                  color: isSelected ? _kAccent : _kTextSecondary),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CiudadDropdown extends StatelessWidget {
+  const _CiudadDropdown({
+    required this.value,
+    required this.hasError,
+    required this.onChanged,
+    this.errorText,
+  });
+  final String? value;
+  final bool hasError;
+  final String? errorText;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: _kSurface,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: hasError ? _kError : _kBorder,
+              width: hasError ? 1.5 : 1.0,
+            ),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: value,
+              hint: Row(children: [
+                const Icon(Icons.location_city_outlined,
+                    size: 20, color: _kTextSecondary),
+                const SizedBox(width: 10),
+                Text('Selecciona una ciudad',
+                    style: GoogleFonts.inter(
+                        fontSize: 15, color: _kTextSecondary)),
+              ]),
+              icon: const Icon(Icons.keyboard_arrow_down,
+                  color: _kTextSecondary, size: 20),
+              isExpanded: true,
+              style: GoogleFonts.inter(fontSize: 15, color: _kTextPrimary),
+              dropdownColor: Colors.white,
+              items: _kCiudades
+                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                  .toList(),
+              onChanged: onChanged,
+              selectedItemBuilder: (context) => _kCiudades.map((c) {
+                return Row(children: [
+                  const Icon(Icons.location_city_outlined,
+                      size: 20, color: _kTextSecondary),
+                  const SizedBox(width: 10),
+                  Text(c,
+                      style: GoogleFonts.inter(
+                          fontSize: 15, color: _kTextPrimary)),
+                ]);
+              }).toList(),
+            ),
+          ),
+        ),
+        if (errorText != null) ...[
+          const SizedBox(height: 4),
+          Text(errorText!,
+              style: GoogleFonts.inter(fontSize: 12, color: _kError)),
+        ],
+      ],
+    );
+  }
+}
+
+class _AddressField extends StatefulWidget {
+  const _AddressField({required this.controller, required this.hint});
+  final TextEditingController controller;
+  final String hint;
+
+  @override
+  State<_AddressField> createState() => _AddressFieldState();
+}
+
+class _AddressFieldState extends State<_AddressField> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_rebuild);
+  }
+
+  void _rebuild() => setState(() {});
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_rebuild);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasText = widget.controller.text.isNotEmpty;
+    return TextField(
+      controller: widget.controller,
+      keyboardType: TextInputType.streetAddress,
+      style: GoogleFonts.inter(fontSize: 15, color: _kTextPrimary),
+      decoration: InputDecoration(
+        hintText: widget.hint,
+        hintStyle: GoogleFonts.inter(fontSize: 15, color: _kTextSecondary),
+        prefixIcon: const Icon(Icons.location_on_outlined,
+            size: 20, color: _kTextSecondary),
+        suffixIcon: hasText
+            ? GestureDetector(
+                onTap: () => widget.controller.clear(),
+                child: const Icon(Icons.close, size: 18, color: _kTextSecondary),
+              )
+            : null,
+        filled: true,
+        fillColor: _kSurface,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: _kBorder)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: _kBorder)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: _kPrimary, width: 1.5)),
+      ),
+    );
+  }
+}
+
+class _ComplementoField extends StatelessWidget {
+  const _ComplementoField({required this.controller});
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      maxLines: 2,
+      minLines: 2,
+      style: GoogleFonts.inter(fontSize: 15, color: _kTextPrimary),
+      decoration: InputDecoration(
+        hintText: 'Edificio Centro 85, torre B. Recepción 24/7.',
+        hintStyle: GoogleFonts.inter(fontSize: 15, color: _kTextSecondary),
+        prefixIcon: const Padding(
+          padding: EdgeInsets.only(bottom: 24),
+          child: Icon(Icons.edit_note_outlined,
+              size: 20, color: _kTextSecondary),
+        ),
+        prefixIconConstraints:
+            const BoxConstraints(minWidth: 48, minHeight: 48),
+        filled: true,
+        fillColor: _kSurface,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: _kBorder)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: _kBorder)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: _kPrimary, width: 1.5)),
+      ),
+    );
+  }
+}
+
+class _HulpBottomNav extends StatelessWidget {
+  const _HulpBottomNav({required this.currentIndex});
+  final int currentIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: _kBg,
+        boxShadow: [
+          BoxShadow(blurRadius: 12, color: Color(0x14000000), offset: Offset(0, -2)),
+        ],
+      ),
+      child: BottomNavigationBar(
+        currentIndex: currentIndex,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        selectedItemColor: _kPrimary,
+        unselectedItemColor: _kTextSecondary,
+        selectedLabelStyle:
+            GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500),
+        unselectedLabelStyle: GoogleFonts.inter(fontSize: 12),
+        items: const [
+          BottomNavigationBarItem(
+              icon: Icon(Icons.home_outlined),
+              activeIcon: Icon(Icons.home),
+              label: 'Inicio'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.access_time_outlined),
+              activeIcon: Icon(Icons.access_time),
+              label: 'Solicitudes'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline),
+              activeIcon: Icon(Icons.person),
+              label: 'Cuenta'),
+        ],
+      ),
+    );
+  }
+}

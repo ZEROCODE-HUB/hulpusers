@@ -1,9 +1,17 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/services.dart';
 
 class FFDevEnvironmentValues {
-  static const String currentEnvironment =
-      String.fromEnvironment('ENVIRONMENT', defaultValue: 'Production');
+  // En debug se usa 'Test' por defecto (Supabase local).
+  // En release siempre 'Production', o el valor explícito del flag --dart-define=ENVIRONMENT=...
+  static const String _envFlag =
+      String.fromEnvironment('ENVIRONMENT', defaultValue: '');
+
+  static String get currentEnvironment {
+    if (_envFlag.isNotEmpty) return _envFlag;
+    return kDebugMode ? 'Test' : 'Production';
+  }
 
   static String get environmentValuesPath =>
       currentEnvironment == 'Test'

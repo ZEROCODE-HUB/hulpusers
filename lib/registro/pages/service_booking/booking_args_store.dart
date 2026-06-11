@@ -1,0 +1,67 @@
+// Almacén temporal de args entre páginas de booking.
+// Evita pasar objetos Dart vía GoRouter extra (incompatible con FFParameters
+// que castea extra a Map<String, dynamic>).
+
+import '/backend/supabase/database/tables/servicios.dart';
+
+// ── Servicio pendiente (detalles → formulario) ────────────────────────────────
+
+class ServiceStore {
+  ServiceStore._();
+
+  static ServiciosRow? _pending;
+
+  /// Llamar antes de navegar a ServiceBookingFormPage.
+  static void set(ServiciosRow servicio) => _pending = servicio;
+
+  /// Leer y limpiar en ServiceBookingFormPage.initState().
+  static ServiciosRow? consume() {
+    final v = _pending;
+    _pending = null;
+    return v;
+  }
+}
+
+// ── Args de éxito (formulario → pantalla de confirmación) ─────────────────────
+
+class BookingArgsStore {
+  BookingArgsStore._();
+
+  static BookingSuccessArgsData? _pending;
+
+  /// Guardar antes de navegar a BookingSuccessPage.
+  static void set(BookingSuccessArgsData args) => _pending = args;
+
+  /// Leer y limpiar desde BookingSuccessPage.
+  static BookingSuccessArgsData? consume() {
+    final v = _pending;
+    _pending = null;
+    return v;
+  }
+}
+
+class BookingSuccessArgsData {
+  const BookingSuccessArgsData({
+    required this.solicitudId,
+    required this.serviceName,
+    required this.serviceDesc,
+    required this.servicePrice,
+    required this.serviceImage,
+    required this.fecha,
+    required this.hora,
+    required this.ciudad,
+    required this.direccion,
+    this.complemento,
+  });
+
+  final String solicitudId;
+  final String serviceName;
+  final String serviceDesc;
+  final String servicePrice;
+  final String serviceImage;
+  final DateTime fecha;
+  final String hora;
+  final String ciudad;
+  final String direccion;
+  final String? complemento;
+}

@@ -6,6 +6,8 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import '/index.dart';
+import '/registro/pages/service_booking/service_booking_form_page.dart';
+import '/registro/pages/service_booking/booking_args_store.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart'
     as smooth_page_indicator;
 import 'package:flutter/material.dart';
@@ -398,14 +400,11 @@ class _DetallesWidgetState extends State<DetallesWidget> {
                 child: FFButtonWidget(
                   onPressed: () async {
                     if (loggedIn) {
+                      if (widget.rowserv != null) {
+                        ServiceStore.set(widget.rowserv!);
+                      }
                       context.pushNamed(
-                        ChatiaWidget.routeName,
-                        queryParameters: {
-                          'mensajeinicial': serializeParam(
-                            'Quiero agendar el servicio de: ${widget.rowserv?.nombre}',
-                            ParamType.String,
-                          ),
-                        }.withoutNulls,
+                        ServiceBookingFormPage.routeName,
                       );
                     } else {
                       context.pushNamed(
