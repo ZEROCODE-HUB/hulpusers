@@ -191,9 +191,9 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: DetallesWidget.routeName,
           path: DetallesWidget.routePath,
           builder: (context, params) => DetallesWidget(
-            rowserv: params.getParam<ServiciosRow>(
-              'rowserv',
-              ParamType.SupabaseRow,
+            servicioId: params.getParam<String>(
+              'servicioId',
+              ParamType.String,
             ),
           ),
         ),

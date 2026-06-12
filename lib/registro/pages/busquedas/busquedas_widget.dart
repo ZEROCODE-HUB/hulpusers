@@ -221,11 +221,10 @@ class _BusquedasWidgetState extends State<BusquedasWidget> {
                             child: Column(
                               mainAxisSize: MainAxisSize.max,
                               children: [
-                                Expanded(
-                                  child: Padding(
-                                    padding: EdgeInsetsDirectional.fromSTEB(
-                                        20.0, 0.0, 20.0, 0.0),
-                                    child: FutureBuilder<List<ServiciosRow>>(
+                                Padding(
+                                  padding: EdgeInsetsDirectional.fromSTEB(
+                                      20.0, 0.0, 20.0, 0.0),
+                                  child: FutureBuilder<List<ServiciosRow>>(
                                       future: (_model.requestCompleter ??=
                                               Completer<List<ServiciosRow>>()
                                                 ..complete(
@@ -238,6 +237,16 @@ class _BusquedasWidgetState extends State<BusquedasWidget> {
                                                 )))
                                           .future,
                                       builder: (context, snapshot) {
+                                        if (snapshot.hasError) {
+                                          return Center(
+                                            child: Text(
+                                              'Error al buscar servicios',
+                                              style:
+                                                  FlutterFlowTheme.of(context)
+                                                      .bodyMedium,
+                                            ),
+                                          );
+                                        }
                                         // Customize what your widget looks like when it's loading.
                                         if (!snapshot.hasData) {
                                           return Center(
@@ -504,11 +513,12 @@ class _BusquedasWidgetState extends State<BusquedasWidget> {
                                                                           .routeName,
                                                                       queryParameters:
                                                                           {
-                                                                        'rowserv':
+                                                                        'servicioId':
                                                                             serializeParam(
-                                                                          listViewServiciosRow,
+                                                                          listViewServiciosRow
+                                                                              .id,
                                                                           ParamType
-                                                                              .SupabaseRow,
+                                                                              .String,
                                                                         ),
                                                                       }.withoutNulls,
                                                                     );
@@ -683,7 +693,6 @@ class _BusquedasWidgetState extends State<BusquedasWidget> {
                                       },
                                     ),
                                   ),
-                                ),
                               ].divide(SizedBox(height: 20.0)),
                             ),
                           ),
