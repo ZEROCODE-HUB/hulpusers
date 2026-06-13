@@ -1,27 +1,27 @@
 import '../database.dart';
 
-class PaisTable extends SupabaseTable<PaisRow> {
+class ProvinciasTable extends SupabaseTable<ProvinciasRow> {
   @override
-  String get tableName => 'pais';
+  String get tableName => 'provincias';
 
   @override
-  PaisRow createRow(Map<String, dynamic> data) => PaisRow(data);
+  ProvinciasRow createRow(Map<String, dynamic> data) => ProvinciasRow(data);
 }
 
-class PaisRow extends SupabaseDataRow {
-  PaisRow(Map<String, dynamic> data) : super(data);
+class ProvinciasRow extends SupabaseDataRow {
+  ProvinciasRow(Map<String, dynamic> data) : super(data);
 
   @override
-  SupabaseTable get table => PaisTable();
+  SupabaseTable get table => ProvinciasTable();
 
   String get id => getField<String>('id')!;
   set id(String value) => setField<String>('id', value);
 
+  String get paisId => getField<String>('pais_id') ?? '';
+  set paisId(String value) => setField<String>('pais_id', value);
+
   String get nombre => getField<String>('nombre') ?? '';
   set nombre(String value) => setField<String>('nombre', value);
-
-  String? get codigo => getField<String>('codigo');
-  set codigo(String? value) => setField<String>('codigo', value);
 
   bool get activo => getField<bool>('activo') ?? true;
   set activo(bool value) => setField<bool>('activo', value);

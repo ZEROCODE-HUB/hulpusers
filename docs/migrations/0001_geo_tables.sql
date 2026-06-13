@@ -1,11 +1,11 @@
 -- ============================================================
--- Migration 0001: Tablas geográficas pais / provincia / ciudad
+-- Migration 0001: Tablas geográficas paises / provincias / ciudades
 -- + FK ciudad_id en solicitudes_servicio
 -- Ejecutar en: Supabase SQL Editor (sandbox y luego producción)
 -- ============================================================
 
--- ── 1. Tabla pais ─────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS pais (
+-- ── 1. Tabla paises ───────────────────────────────────────
+CREATE TABLE IF NOT EXISTS paises (
   id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   nombre     text NOT NULL,
   codigo     text,                        -- ISO 3166-1 alpha-2, ej: 'CO'
@@ -13,19 +13,19 @@ CREATE TABLE IF NOT EXISTS pais (
   creado_en  timestamptz NOT NULL DEFAULT now()
 );
 
--- ── 2. Tabla provincia ────────────────────────────────────
-CREATE TABLE IF NOT EXISTS provincia (
+-- ── 2. Tabla provincias ───────────────────────────────────
+CREATE TABLE IF NOT EXISTS provincias (
   id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  pais_id    uuid NOT NULL REFERENCES pais(id) ON DELETE CASCADE,
+  pais_id    uuid NOT NULL REFERENCES paises(id) ON DELETE CASCADE,
   nombre     text NOT NULL,
   activo     boolean NOT NULL DEFAULT true,
   creado_en  timestamptz NOT NULL DEFAULT now()
 );
 
--- ── 3. Tabla ciudad ───────────────────────────────────────
-CREATE TABLE IF NOT EXISTS ciudad (
+-- ── 3. Tabla ciudades ─────────────────────────────────────
+CREATE TABLE IF NOT EXISTS ciudades (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  provincia_id uuid NOT NULL REFERENCES provincia(id) ON DELETE CASCADE,
+  provincia_id uuid NOT NULL REFERENCES provincias(id) ON DELETE CASCADE,
   nombre       text NOT NULL,
   activo       boolean NOT NULL DEFAULT true,
   creado_en    timestamptz NOT NULL DEFAULT now()
@@ -33,38 +33,36 @@ CREATE TABLE IF NOT EXISTS ciudad (
 
 -- ── 4. FK en solicitudes_servicio ─────────────────────────
 ALTER TABLE solicitudes_servicio
-  ADD COLUMN IF NOT EXISTS ciudad_id uuid REFERENCES ciudad(id) ON DELETE SET NULL;
+  ADD COLUMN IF NOT EXISTS ciudad_id uuid REFERENCES ciudades(id) ON DELETE SET NULL;
 
 -- ── 5. RLS: lectura pública (anon y authenticated) ────────
-ALTER TABLE pais      ENABLE ROW LEVEL SECURITY;
-ALTER TABLE provincia ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ciudad    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE paises     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE provincias ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ciudades   ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "pais_select"      ON pais;
-DROP POLICY IF EXISTS "provincia_select" ON provincia;
-DROP POLICY IF EXISTS "ciudad_select"    ON ciudad;
+DROP POLICY IF EXISTS "paises_select"     ON paises;
+DROP POLICY IF EXISTS "provincias_select" ON provincias;
+DROP POLICY IF EXISTS "ciudades_select"   ON ciudades;
 
-CREATE POLICY "pais_select"
-  ON pais FOR SELECT USING (true);
+CREATE POLICY "paises_select"
+  ON paises FOR SELECT USING (true);
 
-CREATE POLICY "provincia_select"
-  ON provincia FOR SELECT USING (true);
+CREATE POLICY "provincias_select"
+  ON provincias FOR SELECT USING (true);
 
-CREATE POLICY "ciudad_select"
-  ON ciudad FOR SELECT USING (true);
+CREATE POLICY "ciudades_select"
+  ON ciudades FOR SELECT USING (true);
 
 -- ── 6. Seed: Colombia ─────────────────────────────────────
--- Insertar país
 WITH ins_pais AS (
-  INSERT INTO pais (nombre, codigo)
+  INSERT INTO paises (nombre, codigo)
   VALUES ('Colombia', 'CO')
   ON CONFLICT DO NOTHING
   RETURNING id
 ),
 
--- Insertar departamentos (provincias)
 ins_provincias AS (
-  INSERT INTO provincia (pais_id, nombre)
+  INSERT INTO provincias (pais_id, nombre)
   SELECT id, unnest(ARRAY[
     'Bogotá D.C.',
     'Antioquia',
@@ -81,8 +79,7 @@ ins_provincias AS (
   RETURNING id, nombre
 )
 
--- Insertar ciudades por departamento
-INSERT INTO ciudad (provincia_id, nombre)
+INSERT INTO ciudades (provincia_id, nombre)
 SELECT p.id, c.nombre
 FROM ins_provincias p
 JOIN (VALUES
@@ -104,7 +101,7 @@ JOIN (VALUES
 ) AS c(departamento, nombre) ON p.nombre = c.departamento;
 
 -- ── 7. Índices ────────────────────────────────────────────
-CREATE INDEX IF NOT EXISTS idx_provincia_pais_id ON provincia(pais_id);
-CREATE INDEX IF NOT EXISTS idx_ciudad_provincia_id ON ciudad(provincia_id);
-CREATE INDEX IF NOT EXISTS idx_ciudad_activo ON ciudad(activo);
-CREATE INDEX IF NOT EXISTS idx_solicitudes_ciudad_id ON solicitudes_servicio(ciudad_id);
+CREATE INDEX IF NOT EXISTS idx_provincias_pais_id      ON provincias(pais_id);
+CREATE INDEX IF NOT EXISTS idx_ciudades_provincia_id   ON ciudades(provincia_id);
+CREATE INDEX IF NOT EXISTS idx_ciudades_activo         ON ciudades(activo);
+CREATE INDEX IF NOT EXISTS idx_solicitudes_ciudad_id   ON solicitudes_servicio(ciudad_id);

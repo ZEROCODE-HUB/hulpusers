@@ -8,7 +8,7 @@ import 'package:intl/intl.dart';
 import '/auth/supabase_auth/auth_util.dart';
 import '/backend/supabase/database/tables/servicios.dart';
 import '/backend/supabase/database/tables/solicitudes_servicio.dart';
-import '/backend/supabase/database/tables/ciudad.dart';
+import '/backend/supabase/database/tables/ciudades.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import 'booking_success_page.dart';
 import 'booking_args_store.dart';
@@ -45,9 +45,9 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
 
   DateTime? _selectedDate;
   String? _selectedTimeChip;
-  CiudadRow? _selectedCiudad;
+  CiudadesRow? _selectedCiudad;
 
-  late final Future<List<CiudadRow>> _ciudadesFuture;
+  late final Future<List<CiudadesRow>> _ciudadesFuture;
 
   final _addressCtrl = TextEditingController();
   final _complementoCtrl = TextEditingController();
@@ -75,7 +75,7 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
   void initState() {
     super.initState();
     _servicio = ServiceStore.consume();
-    _ciudadesFuture = CiudadTable().queryRows(
+    _ciudadesFuture = CiudadesTable().queryRows(
       queryFn: (q) => q.eq('activo', true).order('nombre', ascending: true),
     );
   }
@@ -639,15 +639,15 @@ class _CiudadDropdown extends StatelessWidget {
     required this.onChanged,
     this.errorText,
   });
-  final Future<List<CiudadRow>> ciudadesFuture;
-  final CiudadRow? value;
+  final Future<List<CiudadesRow>> ciudadesFuture;
+  final CiudadesRow? value;
   final bool hasError;
   final String? errorText;
-  final ValueChanged<CiudadRow?> onChanged;
+  final ValueChanged<CiudadesRow?> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<CiudadRow>>(
+    return FutureBuilder<List<CiudadesRow>>(
       future: ciudadesFuture,
       builder: (context, snapshot) {
         final ciudades = snapshot.data ?? [];
@@ -686,7 +686,7 @@ class _CiudadDropdown extends StatelessWidget {
                       ]),
                     )
                   : DropdownButtonHideUnderline(
-                      child: DropdownButton<CiudadRow>(
+                      child: DropdownButton<CiudadesRow>(
                         value: value,
                         hint: Row(children: [
                           const Icon(Icons.location_city_outlined,
@@ -703,7 +703,7 @@ class _CiudadDropdown extends StatelessWidget {
                             GoogleFonts.inter(fontSize: 15, color: _kTextPrimary),
                         dropdownColor: Colors.white,
                         items: ciudades
-                            .map((c) => DropdownMenuItem<CiudadRow>(
+                            .map((c) => DropdownMenuItem<CiudadesRow>(
                                   value: c,
                                   child: Text(c.nombre),
                                 ))

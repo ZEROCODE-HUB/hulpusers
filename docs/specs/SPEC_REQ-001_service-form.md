@@ -1,8 +1,9 @@
 # SPEC UI — REQ-001: Formulario de Reserva y Pantalla de Éxito
-> Sprint: S 05-2026 · Versión: 1.3 · Estado: **IMPLEMENTADO**
+> Sprint: S 05-2026 · Versión: 1.4 · Estado: **IMPLEMENTADO**
 > Referencia visual: mockup adjunto (imagen entregada el 2026-06-10)
 >
 > **Changelog:**
+> - v1.4 (2026-06-13): §6.4 tablas renombradas a plural: paises/provincias/ciudades. FK ciudad_id sigue igual.
 > - v1.3 (2026-06-13): §3.4 Ciudad → carga dinámica desde backend. §6.1 → ciudad_id añadido al insert. §6.4 resuelto con migración 0001_geo_tables.sql.
 
 ---
@@ -541,15 +542,16 @@ Se creó una jerarquía geográfica de 3 tablas en Supabase: `pais → provincia
 **Migración:** `docs/migrations/0001_geo_tables.sql`
 
 **Tablas creadas:**
-- `pais` — países (seed: Colombia)
-- `provincia` — departamentos (seed: 10 departamentos de Colombia)
-- `ciudad` — ciudades (seed: 15 ciudades principales)
+- `paises` — países (seed: Colombia)
+- `provincias` — departamentos (seed: 10 departamentos de Colombia)
+- `ciudades` — ciudades (seed: 15 ciudades principales)
 
-**FK agregado:** `solicitudes_servicio.ciudad_id uuid REFERENCES ciudad(id) ON DELETE SET NULL`
+**FK agregado:** `solicitudes_servicio.ciudad_id uuid REFERENCES ciudades(id) ON DELETE SET NULL`
 
-**Dart:** `lib/backend/supabase/database/tables/{pais,provincia,ciudad}.dart`
+**Dart:** `lib/backend/supabase/database/tables/{paises,provincias,ciudades}.dart`
+- Clases: `PaisesTable/PaisesRow`, `ProvinciasTable/ProvinciasRow`, `CiudadesTable/CiudadesRow`
 
-**En `ServiceBookingFormPage`:** `_kCiudades` eliminado. `_ciudadesFuture` carga desde `CiudadTable().queryRows(activo = true, order by nombre)` en `initState`. El dropdown usa `DropdownButton<CiudadRow>`.
+**En `ServiceBookingFormPage`:** `_kCiudades` eliminado. `_ciudadesFuture` carga desde `CiudadesTable().queryRows(activo = true, order by nombre)` en `initState`. El dropdown usa `DropdownButton<CiudadesRow>`.
 
 ---
 
