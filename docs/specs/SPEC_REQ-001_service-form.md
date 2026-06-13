@@ -1,6 +1,9 @@
 # SPEC UI — REQ-001: Formulario de Reserva y Pantalla de Éxito
-> Sprint: S 05-2026 · Versión: 1.2 · Estado: **IMPLEMENTADO**
+> Sprint: S 05-2026 · Versión: 1.3 · Estado: **IMPLEMENTADO**
 > Referencia visual: mockup adjunto (imagen entregada el 2026-06-10)
+>
+> **Changelog:**
+> - v1.3 (2026-06-13): §3.4 Ciudad → carga dinámica desde backend. §6.1 → ciudad_id añadido al insert. §6.4 resuelto con migración 0001_geo_tables.sql.
 
 ---
 
@@ -256,9 +259,11 @@ Label: "Ciudad"
 ```
 
 - **Ícono leading:** `Icons.location_city_outlined`, 20 dp
-- **Tipo:** Dropdown selector (`DropdownButtonFormField` o bottom sheet con lista)
+- **Tipo:** `DropdownButton<CiudadRow>` dentro de `FutureBuilder<List<CiudadRow>>`
 - **Ícono trailing:** chevron-down `Icons.keyboard_arrow_down`, color `colorTextSecondary`
-- **Lista de ciudades:** a definir con backend (blocker IP-04 resuelto → es lista predefinida)
+- **Fuente de datos:** tabla `ciudad` en Supabase — query en `initState` filtrando `activo = true`, ordenado por `nombre ASC`. Ver `docs/migrations/0001_geo_tables.sql`.
+- **Estado de carga:** mientras el Future no resuelve, muestra spinner `CircularProgressIndicator` (stroke 2, color accent) dentro del contenedor del campo.
+- **Valor almacenado:** `CiudadRow` — se persiste `ciudad.id` (UUID) como `ciudad_id` en `solicitudes_servicio` y `ciudad.nombre` como texto legible en `BookingSuccessPage`.
 - **Estado error:** borde rojo + "La ciudad es obligatoria"
 
 ### 3.5 Campo Dirección
@@ -504,7 +509,8 @@ Al confirmar el formulario (`_onAgendar`), se hace un insert a `solicitudes_serv
 | `precio` | `_servicio.precio` | `double` | Precio base del servicio |
 | `fecha` | `_selectedDate` | `DateTime` | Fecha seleccionada en el formulario |
 | `hora` | `_selectedTimeChip` | `PostgresTime` | Hora seleccionada (HH:MM) |
-| `ubicacion` | `ciudad + '\n' + direccion + '\n' + complemento` | `String` | Concatenación de ciudad, dirección y complemento |
+| `ciudad_id` | `_selectedCiudad.id` | `uuid` | FK a tabla `ciudad` — resuelve IP-04 |
+| `ubicacion` | `ciudad.nombre + '\n' + direccion + '\n' + complemento` | `String` | Concatenación legible para historial |
 | `estado` | `'pendiente'` | `String` | Estado inicial fijo |
 
 ### 6.2 Campos que NO se llenan en el insert inicial
@@ -528,9 +534,22 @@ El insert retorna la fila creada. El `id` y `ticket` (si el backend los genera a
 // 2. id UUID (fallback)                 →  '#${row.id.substring(0, 6).toUpperCase()}'
 ```
 
-### 6.4 Ciudades (pendiente)
+### 6.4 Ciudades — ✅ Resuelto (v1.3)
 
-Las ciudades están actualmente hardcoded en `_kCiudades` dentro de `service_booking_form_page.dart`. **Decisión pendiente:** cuando se cree la tabla de ciudades/provincias en Supabase, se reemplazará la constante por una query en `initState` y se mostrará un `CircularProgressIndicator` mientras carga.
+Se creó una jerarquía geográfica de 3 tablas en Supabase: `pais → provincia → ciudad`.
+
+**Migración:** `docs/migrations/0001_geo_tables.sql`
+
+**Tablas creadas:**
+- `pais` — países (seed: Colombia)
+- `provincia` — departamentos (seed: 10 departamentos de Colombia)
+- `ciudad` — ciudades (seed: 15 ciudades principales)
+
+**FK agregado:** `solicitudes_servicio.ciudad_id uuid REFERENCES ciudad(id) ON DELETE SET NULL`
+
+**Dart:** `lib/backend/supabase/database/tables/{pais,provincia,ciudad}.dart`
+
+**En `ServiceBookingFormPage`:** `_kCiudades` eliminado. `_ciudadesFuture` carga desde `CiudadTable().queryRows(activo = true, order by nombre)` en `initState`. El dropdown usa `DropdownButton<CiudadRow>`.
 
 ---
 

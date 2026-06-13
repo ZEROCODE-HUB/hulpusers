@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '/auth/supabase_auth/auth_util.dart';
 import '/backend/supabase/database/tables/servicios.dart';
 import '/backend/supabase/database/tables/solicitudes_servicio.dart';
+import '/backend/supabase/database/tables/ciudad.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import 'booking_success_page.dart';
 import 'booking_args_store.dart';
@@ -24,17 +25,6 @@ const _kTextPrimary = Color(0xFF0D0D0D);
 const _kTextSecondary = Color(0xFF757575);
 const _kError = Color(0xFFD32F2F);
 
-// ── Ciudades disponibles (IP-04) ──────────────────────────────────────────────
-const _kCiudades = [
-  'Bogotá, D.C.',
-  'Medellín',
-  'Cali',
-  'Barranquilla',
-  'Cartagena',
-  'Bucaramanga',
-  'Pereira',
-  'Manizales',
-];
 
 // ── Chips de hora predefinidos (SPEC §3.3) ───────────────────────────────────
 const _kTimeChips = ['08:00', '09:00', '10:00', '11:00'];
@@ -55,7 +45,9 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
 
   DateTime? _selectedDate;
   String? _selectedTimeChip;
-  String? _selectedCiudad;
+  CiudadRow? _selectedCiudad;
+
+  late final Future<List<CiudadRow>> _ciudadesFuture;
 
   final _addressCtrl = TextEditingController();
   final _complementoCtrl = TextEditingController();
@@ -83,6 +75,9 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
   void initState() {
     super.initState();
     _servicio = ServiceStore.consume();
+    _ciudadesFuture = CiudadTable().queryRows(
+      queryFn: (q) => q.eq('activo', true).order('nombre', ascending: true),
+    );
   }
 
   @override
@@ -114,8 +109,9 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
       // Construir campo ubicacion: ciudad + dirección + complemento
       final direccion = _addressCtrl.text.trim();
       final complemento = _complementoCtrl.text.trim();
+      final nombreCiudad = _selectedCiudad!.nombre;
       final ubicacionParts = [
-        _selectedCiudad!,
+        nombreCiudad,
         if (direccion.isNotEmpty) direccion,
         if (complemento.isNotEmpty) complemento,
       ];
@@ -133,6 +129,7 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
         'fecha': _selectedDate!.toIso8601String().split('T').first,
         'hora': horaStr,
         'ubicacion': ubicacion,
+        'ciudad_id': _selectedCiudad?.id,
         'estado': 'pendiente',
       });
 
@@ -152,7 +149,7 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
         serviceImage: _serviceImage,
         fecha: _selectedDate!,
         hora: _selectedTimeChip!,
-        ciudad: _selectedCiudad!,
+        ciudad: nombreCiudad,
         direccion: direccion,
         complemento: complemento.isEmpty ? null : complemento,
       ));
@@ -290,6 +287,7 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
             const _FieldLabel('Ciudad'),
             const SizedBox(height: 6),
             _CiudadDropdown(
+              ciudadesFuture: _ciudadesFuture,
               value: _selectedCiudad,
               hasError: _errors.containsKey('ciudad'),
               errorText: _errors['ciudad'],
@@ -635,70 +633,103 @@ class _TimeChip extends StatelessWidget {
 
 class _CiudadDropdown extends StatelessWidget {
   const _CiudadDropdown({
+    required this.ciudadesFuture,
     required this.value,
     required this.hasError,
     required this.onChanged,
     this.errorText,
   });
-  final String? value;
+  final Future<List<CiudadRow>> ciudadesFuture;
+  final CiudadRow? value;
   final bool hasError;
   final String? errorText;
-  final ValueChanged<String?> onChanged;
+  final ValueChanged<CiudadRow?> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            color: _kSurface,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: hasError ? _kError : _kBorder,
-              width: hasError ? 1.5 : 1.0,
+    return FutureBuilder<List<CiudadRow>>(
+      future: ciudadesFuture,
+      builder: (context, snapshot) {
+        final ciudades = snapshot.data ?? [];
+        final isLoading = !snapshot.hasData;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: _kSurface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: hasError ? _kError : _kBorder,
+                  width: hasError ? 1.5 : 1.0,
+                ),
+              ),
+              child: isLoading
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 14),
+                      child: Row(children: [
+                        Icon(Icons.location_city_outlined,
+                            size: 20, color: _kTextSecondary),
+                        SizedBox(width: 10),
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: _kAccent),
+                        ),
+                        SizedBox(width: 10),
+                        Text('Cargando ciudades...',
+                            style: TextStyle(
+                                fontSize: 15, color: _kTextSecondary)),
+                      ]),
+                    )
+                  : DropdownButtonHideUnderline(
+                      child: DropdownButton<CiudadRow>(
+                        value: value,
+                        hint: Row(children: [
+                          const Icon(Icons.location_city_outlined,
+                              size: 20, color: _kTextSecondary),
+                          const SizedBox(width: 10),
+                          Text('Selecciona una ciudad',
+                              style: GoogleFonts.inter(
+                                  fontSize: 15, color: _kTextSecondary)),
+                        ]),
+                        icon: const Icon(Icons.keyboard_arrow_down,
+                            color: _kTextSecondary, size: 20),
+                        isExpanded: true,
+                        style:
+                            GoogleFonts.inter(fontSize: 15, color: _kTextPrimary),
+                        dropdownColor: Colors.white,
+                        items: ciudades
+                            .map((c) => DropdownMenuItem<CiudadRow>(
+                                  value: c,
+                                  child: Text(c.nombre),
+                                ))
+                            .toList(),
+                        onChanged: onChanged,
+                        selectedItemBuilder: (context) => ciudades.map((c) {
+                          return Row(children: [
+                            const Icon(Icons.location_city_outlined,
+                                size: 20, color: _kTextSecondary),
+                            const SizedBox(width: 10),
+                            Text(c.nombre,
+                                style: GoogleFonts.inter(
+                                    fontSize: 15, color: _kTextPrimary)),
+                          ]);
+                        }).toList(),
+                      ),
+                    ),
             ),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: value,
-              hint: Row(children: [
-                const Icon(Icons.location_city_outlined,
-                    size: 20, color: _kTextSecondary),
-                const SizedBox(width: 10),
-                Text('Selecciona una ciudad',
-                    style: GoogleFonts.inter(
-                        fontSize: 15, color: _kTextSecondary)),
-              ]),
-              icon: const Icon(Icons.keyboard_arrow_down,
-                  color: _kTextSecondary, size: 20),
-              isExpanded: true,
-              style: GoogleFonts.inter(fontSize: 15, color: _kTextPrimary),
-              dropdownColor: Colors.white,
-              items: _kCiudades
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                  .toList(),
-              onChanged: onChanged,
-              selectedItemBuilder: (context) => _kCiudades.map((c) {
-                return Row(children: [
-                  const Icon(Icons.location_city_outlined,
-                      size: 20, color: _kTextSecondary),
-                  const SizedBox(width: 10),
-                  Text(c,
-                      style: GoogleFonts.inter(
-                          fontSize: 15, color: _kTextPrimary)),
-                ]);
-              }).toList(),
-            ),
-          ),
-        ),
-        if (errorText != null) ...[
-          const SizedBox(height: 4),
-          Text(errorText!,
-              style: GoogleFonts.inter(fontSize: 12, color: _kError)),
-        ],
-      ],
+            if (errorText != null) ...[
+              const SizedBox(height: 4),
+              Text(errorText!,
+                  style: GoogleFonts.inter(fontSize: 12, color: _kError)),
+            ],
+          ],
+        );
+      },
     );
   }
 }
