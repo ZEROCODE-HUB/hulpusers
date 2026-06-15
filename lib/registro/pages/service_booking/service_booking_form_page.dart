@@ -75,9 +75,18 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
   void initState() {
     super.initState();
     _servicio = ServiceStore.consume();
-    _ciudadesFuture = CiudadesTable().queryRows(
-      queryFn: (q) => q.eq('activo', true).order('nombre', ascending: true),
-    );
+    _ciudadesFuture = CiudadesTable()
+        .queryRows(
+          queryFn: (q) => q.eq('activo', true).order('nombre', ascending: true),
+        )
+        .then((rows) {
+          debugPrint('🏙️ ciudades loaded: ${rows.length} rows');
+          return rows;
+        })
+        .catchError((e) {
+          debugPrint('🏙️ ciudades error: $e');
+          throw e;
+        });
   }
 
   @override
@@ -155,6 +164,7 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
       ));
       context.pushNamed(BookingSuccessPage.routeName);
     } catch (e) {
+      debugPrint('🔴 _onAgendar error: $e');
       if (!mounted) return;
       setState(() => _isSubmitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -651,7 +661,8 @@ class _CiudadDropdown extends StatelessWidget {
       future: ciudadesFuture,
       builder: (context, snapshot) {
         final ciudades = snapshot.data ?? [];
-        final isLoading = !snapshot.hasData;
+        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+        final hasQueryError = snapshot.hasError;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -666,7 +677,19 @@ class _CiudadDropdown extends StatelessWidget {
                   width: hasError ? 1.5 : 1.0,
                 ),
               ),
-              child: isLoading
+              child: hasQueryError
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      child: Row(children: [
+                        const Icon(Icons.location_city_outlined,
+                            size: 20, color: _kError),
+                        const SizedBox(width: 10),
+                        Text('Error al cargar ciudades',
+                            style: GoogleFonts.inter(
+                                fontSize: 15, color: _kError)),
+                      ]),
+                    )
+                  : isLoading
                   ? const Padding(
                       padding: EdgeInsets.symmetric(vertical: 14),
                       child: Row(children: [

@@ -10,7 +10,8 @@ build/
 android/app/*.jks
 android/app/*.keystore
 
-# Environment credentials - never commit API keys
-assets/environment_values/environment*.json
-
-# Los specs van al repo dentro de docs/ para mantener historial por commits
+# Environment / credentials
+assets/environment_values/environment.json
+assets/environment_values/environment_test.json
+assets/environment_values/environment_sandbox.json
+credencialesproduccion.txt
