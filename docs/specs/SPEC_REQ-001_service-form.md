@@ -1,8 +1,9 @@
 # SPEC UI — REQ-001: Formulario de Reserva y Pantalla de Éxito
-> Sprint: S 05-2026 · Versión: 1.4 · Estado: **IMPLEMENTADO**
+> Sprint: S 05-2026 · Versión: 1.5 · Estado: **IMPLEMENTADO**
 > Referencia visual: mockup adjunto (imagen entregada el 2026-06-10)
 >
 > **Changelog:**
+> - v1.5 (2026-06-15): §6.1 estado inicial del insert cambiado de `pendiente` a `entrantes` para que el proveedor (HulpTalent) pueda leer la solicitud de servicio.
 > - v1.4 (2026-06-13): §6.4 tablas renombradas a plural: paises/provincias/ciudades. FK ciudad_id sigue igual.
 > - v1.3 (2026-06-13): §3.4 Ciudad → carga dinámica desde backend. §6.1 → ciudad_id añadido al insert. §6.4 resuelto con migración 0001_geo_tables.sql.
 
@@ -512,7 +513,7 @@ Al confirmar el formulario (`_onAgendar`), se hace un insert a `solicitudes_serv
 | `hora` | `_selectedTimeChip` | `PostgresTime` | Hora seleccionada (HH:MM) |
 | `ciudad_id` | `_selectedCiudad.id` | `uuid` | FK a tabla `ciudad` — resuelve IP-04 |
 | `ubicacion` | `ciudad.nombre + '\n' + direccion + '\n' + complemento` | `String` | Concatenación legible para historial |
-| `estado` | `'pendiente'` | `String` | Estado inicial fijo |
+| `estado` | `'entrantes'` | `String` | Estado inicial fijo. Debe ser `entrantes` para que el proveedor (HulpTalent) pueda leer la solicitud de servicio |
 
 ### 6.2 Campos que NO se llenan en el insert inicial
 

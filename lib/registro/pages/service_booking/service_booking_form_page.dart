@@ -139,7 +139,7 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
         'hora': horaStr,
         'ubicacion': ubicacion,
         'ciudad_id': _selectedCiudad?.id,
-        'estado': 'pendiente',
+        'estado': 'entrantes',
       });
 
       if (!mounted) return;
