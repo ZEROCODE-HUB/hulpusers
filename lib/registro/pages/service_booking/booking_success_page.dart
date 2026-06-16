@@ -6,6 +6,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/registro/pages/historial/historial_widget.dart';
 import 'booking_args_store.dart';
 
 // ── Tokens de color (SPEC §1.1) ───────────────────────────────────────────────
@@ -159,9 +160,7 @@ class _BookingSuccessPageState extends State<BookingSuccessPage> {
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                onPressed: () {
-                  // TODO Sprint: navegar a detalle de solicitud
-                },
+                onPressed: () => context.pushNamed(HistorialWidget.routeName),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _kButton,
                   shape: RoundedRectangleBorder(

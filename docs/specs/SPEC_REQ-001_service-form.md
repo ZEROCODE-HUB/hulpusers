@@ -1,8 +1,9 @@
 # SPEC UI — REQ-001: Formulario de Reserva y Pantalla de Éxito
-> Sprint: S 05-2026 · Versión: 1.6 · Estado: **IMPLEMENTADO**
+> Sprint: S 05-2026 · Versión: 1.7 · Estado: **IMPLEMENTADO**
 > Referencia visual: mockup adjunto (imagen entregada el 2026-06-10)
 >
 > **Changelog:**
+> - v1.7 (2026-06-15): §4.6 botón "Ver solicitud" ahora redirige al historial de servicios (`/historial`). Antes no tenía acción.
 > - v1.6 (2026-06-15): §1.1 color de botones (`colorButtonPrimary` y `colorButtonSecondaryBorder`) cambiado a `#157867` en `ServiceBookingFormPage` y `BookingSuccessPage`. No afecta bordes de inputs ni bottom nav (siguen en `colorPrimary` #1A3C2E).
 > - v1.5 (2026-06-15): §6.1 estado inicial del insert cambiado de `pendiente` a `entrantes` para que el proveedor (HulpTalent) pueda leer la solicitud de servicio.
 > - v1.4 (2026-06-13): §6.4 tablas renombradas a plural: paises/provincias/ciudades. FK ciudad_id sigue igual.
@@ -445,7 +446,7 @@ tu sección de solicitudes.
 **Botón primario "Ver solicitud":**
 - Mismo estilo que §3.7
 - Label: "Ver solicitud"
-- Acción: navegar a la pantalla de detalle de la solicitud (ruta por definir en sprint siguiente)
+- Acción: navegar al historial de servicios (`HistorialWidget`, ruta `/historial`) mediante `context.pushNamed(HistorialWidget.routeName)`. Ahí el cliente ve el listado de sus solicitudes; la recién creada aparece bajo la pestaña "Pendiente" (estado `entrantes`).
 
 **Botón secundario "Volver al inicio":**
 - **Width:** `double.infinity`
