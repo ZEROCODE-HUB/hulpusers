@@ -41,7 +41,7 @@ class ServiceBookingFormPage extends StatefulWidget {
 }
 
 class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
-  /// Servicio cargado desde ServiceStore al entrar a la página.
+
   ServiciosRow? _servicio;
 
   DateTime? _selectedDate;
@@ -103,7 +103,7 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
     if (_selectedDate == null) _errors['date'] = 'La fecha es obligatoria';
     if (_selectedTimeChip == null) _errors['time'] = 'La hora es obligatoria';
     if (_selectedCiudad == null) _errors['ciudad'] = 'La ciudad es obligatoria';
-    // Dirección es opcional — no bloquea el submit (SPEC §5.1)
+
     return _errors.isEmpty;
   }
 
@@ -116,7 +116,7 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
     setState(() => _isSubmitting = true);
 
     try {
-      // Construir campo ubicacion: ciudad + dirección + complemento
+
       final direccion = _addressCtrl.text.trim();
       final complemento = _complementoCtrl.text.trim();
       final nombreCiudad = _selectedCiudad!.nombre;
@@ -127,7 +127,7 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
       ];
       final ubicacion = ubicacionParts.join('\n');
 
-      // Hora → formato HH:MM:SS para PostgresTime
+
       final horaStr = '${_selectedTimeChip!}:00';
 
       final row = await SolicitudesServicioTable().insert({
@@ -204,6 +204,8 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
     final picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
+      
+      initialEntryMode: TimePickerEntryMode.input,
     );
     if (picked != null && mounted) {
       final hh = picked.hour.toString().padLeft(2, '0');

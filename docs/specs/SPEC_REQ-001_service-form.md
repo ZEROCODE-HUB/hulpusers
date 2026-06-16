@@ -1,8 +1,9 @@
 # SPEC UI — REQ-001: Formulario de Reserva y Pantalla de Éxito
-> Sprint: S 05-2026 · Versión: 1.7 · Estado: **IMPLEMENTADO**
+> Sprint: S 05-2026 · Versión: 1.8 · Estado: **IMPLEMENTADO**
 > Referencia visual: mockup adjunto (imagen entregada el 2026-06-10)
 >
 > **Changelog:**
+> - v1.8 (2026-06-15): §3.3 el selector de hora ("Más") abre por defecto en modo de entrada manual (`TimePickerEntryMode.input`) en lugar del reloj.
 > - v1.7 (2026-06-15): §4.6 botón "Ver solicitud" ahora redirige al historial de servicios (`/historial`). Antes no tenía acción.
 > - v1.6 (2026-06-15): §1.1 color de botones (`colorButtonPrimary` y `colorButtonSecondaryBorder`) cambiado a `#157867` en `ServiceBookingFormPage` y `BookingSuccessPage`. No afecta bordes de inputs ni bottom nav (siguen en `colorPrimary` #1A3C2E).
 > - v1.5 (2026-06-15): §6.1 estado inicial del insert cambiado de `pendiente` a `entrantes` para que el proveedor (HulpTalent) pueda leer la solicitud de servicio.
@@ -247,7 +248,7 @@ Label: "Hora"
 - **Ícono leading:** `Icons.access_time_outlined`, 20 dp, `colorTextSecondary`
 - **Chips:** `SingleChildScrollView(scrollDirection: Axis.horizontal)` con chips
 - **Chips predefinidos:** `['08:00', '09:00', '10:00', '11:00']` + chip "Más"
-- **Chip "Más":** abre `showTimePicker` nativo (permite seleccionar cualquier hora)
+- **Chip "Más":** abre `showTimePicker` nativo (permite seleccionar cualquier hora). Se abre por defecto en modo de entrada manual (`initialEntryMode: TimePickerEntryMode.input` → diálogo "INTRODUCIR HORA"); el cliente puede cambiar al reloj con el ícono del selector.
 - **Selección:** un solo chip activo a la vez; al seleccionar otro se deselecciona el anterior
 - **Gap entre chips:** 8 dp
 - **Estado error:** borde del contenedor rojo + "La hora es obligatoria" debajo
