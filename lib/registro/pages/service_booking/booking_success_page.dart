@@ -10,6 +10,7 @@ import 'booking_args_store.dart';
 
 // ── Tokens de color (SPEC §1.1) ───────────────────────────────────────────────
 const _kPrimary = Color(0xFF1A3C2E);
+const _kButton = Color(0xFF157867);
 const _kPrimaryLight = Color(0xFFE8F5EE);
 const _kAccent = Color(0xFF2D8653);
 const _kBg = Color(0xFFFFFFFF);
@@ -75,13 +76,13 @@ class _BookingSuccessPageState extends State<BookingSuccessPage> {
               OutlinedButton(
                 onPressed: () => context.go('/'),
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: _kPrimary, width: 1.5),
+                  side: const BorderSide(color: _kButton, width: 1.5),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14)),
                 ),
                 child: Text('Volver al inicio',
                     style: GoogleFonts.inter(
-                        color: _kPrimary,
+                        color: _kButton,
                         fontSize: 16,
                         fontWeight: FontWeight.w600)),
               ),
@@ -162,7 +163,7 @@ class _BookingSuccessPageState extends State<BookingSuccessPage> {
                   // TODO Sprint: navegar a detalle de solicitud
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _kPrimary,
+                  backgroundColor: _kButton,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14)),
                   elevation: 0,
@@ -184,14 +185,14 @@ class _BookingSuccessPageState extends State<BookingSuccessPage> {
               child: OutlinedButton(
                 onPressed: () => context.go('/'),
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: _kPrimary, width: 1.5),
+                  side: const BorderSide(color: _kButton, width: 1.5),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14)),
                 ),
                 child: Text(
                   'Volver al inicio',
                   style: GoogleFonts.inter(
-                    color: _kPrimary,
+                    color: _kButton,
                     fontSize: 17,
                     fontWeight: FontWeight.w600,
                   ),

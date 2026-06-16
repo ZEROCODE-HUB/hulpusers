@@ -1,8 +1,9 @@
 # SPEC UI — REQ-001: Formulario de Reserva y Pantalla de Éxito
-> Sprint: S 05-2026 · Versión: 1.5 · Estado: **IMPLEMENTADO**
+> Sprint: S 05-2026 · Versión: 1.6 · Estado: **IMPLEMENTADO**
 > Referencia visual: mockup adjunto (imagen entregada el 2026-06-10)
 >
 > **Changelog:**
+> - v1.6 (2026-06-15): §1.1 color de botones (`colorButtonPrimary` y `colorButtonSecondaryBorder`) cambiado a `#157867` en `ServiceBookingFormPage` y `BookingSuccessPage`. No afecta bordes de inputs ni bottom nav (siguen en `colorPrimary` #1A3C2E).
 > - v1.5 (2026-06-15): §6.1 estado inicial del insert cambiado de `pendiente` a `entrantes` para que el proveedor (HulpTalent) pueda leer la solicitud de servicio.
 > - v1.4 (2026-06-13): §6.4 tablas renombradas a plural: paises/provincias/ciudades. FK ciudad_id sigue igual.
 > - v1.3 (2026-06-13): §3.4 Ciudad → carga dinámica desde backend. §6.1 → ciudad_id añadido al insert. §6.4 resuelto con migración 0001_geo_tables.sql.
@@ -68,9 +69,9 @@ Los siguientes tres lugares del código navegan ahora a `ServiceBookingFormPage`
 | `colorTextSelected` | `#2D8653` | Valor dentro del chip de hora seleccionado |
 | `colorInfoBg` | `#EAF4F8` | Fondo del banner informativo en éxito |
 | `colorInfoIcon` | `#4A9FC5` | Color del ícono ℹ en el banner |
-| `colorButtonPrimary` | `#1A3C2E` | Fondo botón "Agendar" / "Ver solicitud" |
+| `colorButtonPrimary` | `#157867` | Fondo botón "Agendar" / "Ver solicitud" |
 | `colorButtonSecondary` | `#FFFFFF` | Fondo botón "Volver al inicio" |
-| `colorButtonSecondaryBorder` | `#1A3C2E` | Borde botón "Volver al inicio" |
+| `colorButtonSecondaryBorder` | `#157867` | Borde y texto botón "Volver al inicio" |
 | `colorSparkle` | `#4ECDC4` / `#A8E6CF` | Destellos decorativos en pantalla de éxito |
 
 ### 1.2 Tipografía

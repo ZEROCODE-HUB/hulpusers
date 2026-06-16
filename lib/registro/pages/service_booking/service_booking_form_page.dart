@@ -15,6 +15,7 @@ import 'booking_args_store.dart';
 
 // ── Tokens de color (SPEC §1.1) ───────────────────────────────────────────────
 const _kPrimary = Color(0xFF1A3C2E);
+const _kButton = Color(0xFF157867);
 const _kPrimaryLight = Color(0xFFE8F5EE);
 const _kAccent = Color(0xFF2D8653);
 const _kBg = Color(0xFFFFFFFF);
@@ -330,8 +331,8 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
               child: ElevatedButton(
                 onPressed: _isSubmitting ? null : _onAgendar,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _kPrimary,
-                  disabledBackgroundColor: _kPrimary.withOpacity(0.6),
+                  backgroundColor: _kButton,
+                  disabledBackgroundColor: _kButton.withOpacity(0.6),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
