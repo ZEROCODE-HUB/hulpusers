@@ -2,6 +2,7 @@
 > Sprint: S 06-2026 · Versión: 1.1 · Estado: **IMPLEMENTADO**
 >
 > **Changelog:**
+> - v1.2 (2026-06-18): §3.1 se añade la **hora de reserva (`hora`) ascendente** como criterio secundario, aplicado tras `fecha` cuando dos solicitudes comparten la misma fecha.
 > - v1.1 (2026-06-18): §3 reescrito. El criterio de orden pasa a ser **fecha de reserva del servicio (`fecha`) ascendente** en todas las vistas con filtro y en la búsqueda. La vista **sin filtro** (estado inicial, `seleccion == null`) se ordena por **prioridad de estado** y, dentro de cada grupo, por `fecha` ascendente. Reemplaza el orden por `solicitud_creada_en` DESC de la v1.0.
 > - v1.0 (2026-06-18): §3 el listado de la pestaña "Pendiente" (estado `entrantes`) se ordena por `solicitud_creada_en` descendente (la solicitud más reciente primero).
 
@@ -27,9 +28,9 @@ Cuando hay texto de búsqueda (`textController.text != ''`) se devuelve la lista
 
 ### 3.1 Campo de orden principal
 
-Se usa **`fecha`** (`fecha`, fecha de reserva del servicio) como criterio principal. La lógica es mostrar primero los servicios que ocurren antes (los más próximos), por lo que el orden es **ascendente** (de la fecha menor a la mayor).
+Se usa **`fecha`** (`fecha`, fecha de reserva del servicio) como criterio principal y **`hora`** (`hora`, hora de reserva) como criterio secundario de desempate. La lógica es mostrar primero los servicios que ocurren antes (los más próximos), por lo que ambos van en orden **ascendente**: a igualdad de `fecha`, la solicitud con `hora` más temprana aparece primero.
 
-Los registros con `fecha == null` se ordenan al final en todos los casos.
+Manejo de nulos (en todos los casos): los registros con `fecha == null` se ordenan al final; a igualdad de `fecha`, los que tienen `hora == null` se ordenan al final dentro de ese grupo. La comparación de `hora` usa la hora del día (`PostgresTime.time`).
 
 ### 3.2 Vista sin filtro (estado inicial, `seleccion == null`)
 

@@ -729,23 +729,50 @@ class _HistorialWidgetState extends State<HistorialWidget> {
                                   child: Builder(
                                     builder: (context) {
                                       final historial = () {
+                                        int? segundosHora(PostgresTime? hora) {
+                                          final t = hora?.time;
+                                          if (t == null) {
+                                            return null;
+                                          }
+                                          return t.hour * 3600 +
+                                              t.minute * 60 +
+                                              t.second;
+                                        }
+                                        // Orden por fecha de reserva ascendente
+                                        // y, a igualdad de fecha, por hora de
+                                        // reserva ascendente. Nulos al final.
                                         int compararPorFechaAsc(
                                             VwSolicitudesServiciosCompletaRow a,
                                             VwSolicitudesServiciosCompletaRow
                                                 b) {
                                           final aFecha = a.fecha;
                                           final bFecha = b.fecha;
-                                          if (aFecha == null &&
-                                              bFecha == null) {
-                                            return 0;
-                                          }
-                                          if (aFecha == null) {
+                                          if (aFecha != null &&
+                                              bFecha != null) {
+                                            final cmpFecha =
+                                                aFecha.compareTo(bFecha);
+                                            if (cmpFecha != 0) {
+                                              return cmpFecha;
+                                            }
+                                          } else if (aFecha == null &&
+                                              bFecha != null) {
                                             return 1;
-                                          }
-                                          if (bFecha == null) {
+                                          } else if (aFecha != null &&
+                                              bFecha == null) {
                                             return -1;
                                           }
-                                          return aFecha.compareTo(bFecha);
+                                          final aHora = segundosHora(a.hora);
+                                          final bHora = segundosHora(b.hora);
+                                          if (aHora == null && bHora == null) {
+                                            return 0;
+                                          }
+                                          if (aHora == null) {
+                                            return 1;
+                                          }
+                                          if (bHora == null) {
+                                            return -1;
+                                          }
+                                          return aHora.compareTo(bHora);
                                         }
                                         int prioridadEstado(String? estado) {
                                           switch (estado) {
