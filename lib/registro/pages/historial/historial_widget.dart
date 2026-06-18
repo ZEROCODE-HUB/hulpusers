@@ -729,9 +729,6 @@ class _HistorialWidgetState extends State<HistorialWidget> {
                                   child: Builder(
                                     builder: (context) {
                                       final historial = () {
-                                        // Orden por fecha de reserva del
-                                        // servicio ascendente (la más próxima
-                                        // primero). Los nulos van al final.
                                         int compararPorFechaAsc(
                                             VwSolicitudesServiciosCompletaRow a,
                                             VwSolicitudesServiciosCompletaRow
@@ -750,10 +747,6 @@ class _HistorialWidgetState extends State<HistorialWidget> {
                                           }
                                           return aFecha.compareTo(bFecha);
                                         }
-
-                                        // Prioridad de estado para la vista sin
-                                        // filtro: arriba lo accionable/próximo,
-                                        // abajo lo ya cerrado.
                                         int prioridadEstado(String? estado) {
                                           switch (estado) {
                                             case 'entrantes':
@@ -824,8 +817,6 @@ class _HistorialWidgetState extends State<HistorialWidget> {
                                               .toList()
                                             ..sort(compararPorFechaAsc);
                                         } else {
-                                          // Sin filtro: prioridad de estado y,
-                                          // dentro de cada grupo, fecha asc.
                                           return containerVwSolicitudesServiciosCompletaRowList
                                               .toList()
                                             ..sort((a, b) {
