@@ -729,22 +729,71 @@ class _HistorialWidgetState extends State<HistorialWidget> {
                                   child: Builder(
                                     builder: (context) {
                                       final historial = () {
+                                        // Orden por fecha de reserva del
+                                        // servicio ascendente (la más próxima
+                                        // primero). Los nulos van al final.
+                                        int compararPorFechaAsc(
+                                            VwSolicitudesServiciosCompletaRow a,
+                                            VwSolicitudesServiciosCompletaRow
+                                                b) {
+                                          final aFecha = a.fecha;
+                                          final bFecha = b.fecha;
+                                          if (aFecha == null &&
+                                              bFecha == null) {
+                                            return 0;
+                                          }
+                                          if (aFecha == null) {
+                                            return 1;
+                                          }
+                                          if (bFecha == null) {
+                                            return -1;
+                                          }
+                                          return aFecha.compareTo(bFecha);
+                                        }
+
+                                        // Prioridad de estado para la vista sin
+                                        // filtro: arriba lo accionable/próximo,
+                                        // abajo lo ya cerrado.
+                                        int prioridadEstado(String? estado) {
+                                          switch (estado) {
+                                            case 'entrantes':
+                                              return 0;
+                                            case 'aceptadas':
+                                              return 1;
+                                            case 'iniciadas':
+                                            case 'en camino':
+                                            case 'en proceso':
+                                              return 2;
+                                            case 'finalizadas':
+                                            case 'reagendadas':
+                                              return 3;
+                                            case 'canceladas':
+                                              return 4;
+                                            default:
+                                              return 5;
+                                          }
+                                        }
+
                                         if (_model.textController.text != '') {
-                                          return containerVwSolicitudesServiciosCompletaRowList;
+                                          return containerVwSolicitudesServiciosCompletaRowList
+                                              .toList()
+                                            ..sort(compararPorFechaAsc);
                                         } else if (_model.seleccion ==
                                             'Pendiente') {
                                           return containerVwSolicitudesServiciosCompletaRowList
                                               .where((e) =>
                                                   e.estadoSolicitud ==
                                                   'entrantes')
-                                              .toList();
+                                              .toList()
+                                            ..sort(compararPorFechaAsc);
                                         } else if (_model.seleccion ==
                                             'Activa') {
                                           return containerVwSolicitudesServiciosCompletaRowList
                                               .where((e) =>
                                                   e.estadoSolicitud ==
                                                   'aceptadas')
-                                              .toList();
+                                              .toList()
+                                            ..sort(compararPorFechaAsc);
                                         } else if (_model.seleccion ==
                                             'En curso') {
                                           return containerVwSolicitudesServiciosCompletaRowList
@@ -754,7 +803,8 @@ class _HistorialWidgetState extends State<HistorialWidget> {
                                                       'en camino') ||
                                                   (e.estadoSolicitud ==
                                                       'en proceso'))
-                                              .toList();
+                                              .toList()
+                                            ..sort(compararPorFechaAsc);
                                         } else if (_model.seleccion ==
                                             'Finalizado') {
                                           return containerVwSolicitudesServiciosCompletaRowList
@@ -763,16 +813,31 @@ class _HistorialWidgetState extends State<HistorialWidget> {
                                                       'finalizadas') ||
                                                   (e.estadoSolicitud ==
                                                       'reagendadas'))
-                                              .toList();
+                                              .toList()
+                                            ..sort(compararPorFechaAsc);
                                         } else if (_model.seleccion ==
                                             'Cancelado') {
                                           return containerVwSolicitudesServiciosCompletaRowList
                                               .where((e) =>
                                                   e.estadoSolicitud ==
                                                   'canceladas')
-                                              .toList();
+                                              .toList()
+                                            ..sort(compararPorFechaAsc);
                                         } else {
-                                          return containerVwSolicitudesServiciosCompletaRowList;
+                                          // Sin filtro: prioridad de estado y,
+                                          // dentro de cada grupo, fecha asc.
+                                          return containerVwSolicitudesServiciosCompletaRowList
+                                              .toList()
+                                            ..sort((a, b) {
+                                              final cmpEstado = prioridadEstado(
+                                                      a.estadoSolicitud)
+                                                  .compareTo(prioridadEstado(
+                                                      b.estadoSolicitud));
+                                              if (cmpEstado != 0) {
+                                                return cmpEstado;
+                                              }
+                                              return compararPorFechaAsc(a, b);
+                                            });
                                         }
                                       }()
                                           .toList();
