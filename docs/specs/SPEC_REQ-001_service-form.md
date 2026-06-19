@@ -1,8 +1,10 @@
 # SPEC UI — REQ-001: Formulario de Reserva y Pantalla de Éxito
-> Sprint: S 05-2026 · Versión: 1.8 · Estado: **IMPLEMENTADO**
+> Sprint: S 05-2026 · Versión: 1.10 · Estado: **IMPLEMENTADO**
 > Referencia visual: mockup adjunto (imagen entregada el 2026-06-10)
 >
 > **Changelog:**
+> - v1.10 (2026-06-19): §3.3 el rango de los chips de hora se ajusta a la jornada laboral 08:00–18:00 (21 chips, intervalos de 30 min). El chip "Más" se mantiene para horas fuera de ese rango.
+> - v1.9 (2026-06-19): §3.3 los chips de hora predefinidos pasan de intervalos de 1 h (08:00–11:00) a intervalos de 30 min cubriendo toda la jornada de servicio: 06:00 a 20:00 (29 chips). El chip "Más" se mantiene para horas personalizadas. Afecta §2.3, §5.3 e IP-03.
 > - v1.8 (2026-06-15): §3.3 el selector de hora ("Más") abre por defecto en modo de entrada manual (`TimePickerEntryMode.input`) en lugar del reloj.
 > - v1.7 (2026-06-15): §4.6 botón "Ver solicitud" ahora redirige al historial de servicios (`/historial`). Antes no tenía acción.
 > - v1.6 (2026-06-15): §1.1 color de botones (`colorButtonPrimary` y `colorButtonSecondaryBorder`) cambiado a `#157867` en `ServiceBookingFormPage` y `BookingSuccessPage`. No afecta bordes de inputs ni bottom nav (siguen en `colorPrimary` #1A3C2E).
@@ -157,7 +159,7 @@ error text (12sp, colorError) — solo si hay error
 - **Ícono leading:** 20 dp, color `colorTextSecondary`
 
 ### 2.3 `TimeChip`
-Chip individual del selector de hora.
+Chip individual del selector de hora. La fila de chips usa scroll horizontal porque el set predefinido es amplio (08:00–18:00 cada 30 min, ver §3.3).
 
 **Estado default:**
 - Fondo: `#FFFFFF`, borde 1 dp `colorBorder`, radius `radiusInput`
@@ -241,13 +243,13 @@ Label: "Fecha"
 ```
 Label: "Hora"
 ┌─────────────────────────────────────────────────────────────────┐
-│ [🕐 icon]  [08:00✓]  [09:00]  [10:00]  [11:00]  [Más ˅]        │
+│ [🕐 icon]  [08:00✓]  [08:30]  [09:00]  …  [18:00]  [Más ˅]      │  ← scroll horizontal
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 - **Ícono leading:** `Icons.access_time_outlined`, 20 dp, `colorTextSecondary`
 - **Chips:** `SingleChildScrollView(scrollDirection: Axis.horizontal)` con chips
-- **Chips predefinidos:** `['08:00', '09:00', '10:00', '11:00']` + chip "Más"
+- **Chips predefinidos:** intervalos de **30 min** desde **08:00** hasta **18:00** (jornada laboral), generados programáticamente → `['08:00', '08:30', '09:00', …, '17:30', '18:00']` (21 chips), seguidos del chip "Más". El rango se define con las constantes `_kTimeStartHour = 8`, `_kTimeEndHour = 18`, `_kTimeStepMinutes = 30`.
 - **Chip "Más":** abre `showTimePicker` nativo (permite seleccionar cualquier hora). Se abre por defecto en modo de entrada manual (`initialEntryMode: TimePickerEntryMode.input` → diálogo "INTRODUCIR HORA"); el cliente puede cambiar al reloj con el ícono del selector.
 - **Selección:** un solo chip activo a la vez; al seleccionar otro se deselecciona el anterior
 - **Gap entre chips:** 8 dp
@@ -488,8 +490,8 @@ tu sección de solicitudes.
 
 - Al cargar la página: ningún chip seleccionado
 - Solo un chip puede estar seleccionado a la vez
-- Si el usuario selecciona "Más" y elige una hora en el picker nativo, esa hora se muestra como un chip adicional activo (o se muestra en el campo formateado)
-- La hora seleccionada en chips se mostrará como "08:00" (formato 24 h, HH:MM)
+- Si el usuario selecciona "Más" y elige una hora fuera del set predefinido (p. ej. con minutos distintos de :00/:30, o fuera del rango 08:00–18:00), el chip "Más" queda marcado como activo y conserva el valor elegido
+- La hora seleccionada en chips se mostrará como "08:30" (formato 24 h, HH:MM)
 
 ### 5.4 Campo Dirección — ícono de borrar
 
@@ -568,7 +570,7 @@ Los siguientes puntos del diseño resuelven bloqueantes del SPEC funcional origi
 | IP-01 | Origen de `service_description` | El diseño muestra una **tarjeta completa** con imagen, nombre, descripción y precio del servicio. Viene de la pantalla anterior (navegación desde detalle del servicio). Se pasa como parámetro a `ServiceBookingFormPage`. | `ServiceBookingFormPage` recibe `ServiciosRow` como parámetro de navegación |
 | IP-04 | Ciudad: texto libre vs lista | El diseño muestra **dropdown selector** (`˅`). Es lista predefinida. | Cambiar `TextField` ciudad por `DropdownButtonFormField` |
 | IP-02 | Formato de fecha | Formato largo en español: `EEEE, d 'de' MMMM 'de' yyyy`. Selector de calendario nativo. | Usar `intl` package: `DateFormat('EEEE, d \'de\' MMMM \'de\' yyyy', 'es')` |
-| IP-03 | Formato de hora | Chips con horas predefinidas (08:00–11:00) + "Más" para picker libre. Formato 24 h. | Añadir chips `TimeChip` + `showTimePicker` en "Más" |
+| IP-03 | Formato de hora | Chips con horas predefinidas cada 30 min (08:00–18:00) + "Más" para picker libre. Formato 24 h. | Generar lista `_kTimeChips` por rango + `showTimePicker` en "Más" |
 | IP-05 | Diseño de `BookingSuccessPage` | ✅ **Resuelto**: mockup entregado y documentado en §4. | Implementar según §4 de este documento |
 | — | Dirección opcional | Campo "Dirección" es **opcional** — no bloquea el submit. Solo son obligatorios: Fecha, Hora y Ciudad. | Eliminar validación de dirección en `_validate()` |
 | — | Campos de dirección | El diseño mantiene **dos campos visibles**: "Dirección" + "Complemento / referencia (opcional)". En el backend se concatenan en un único campo antes de persistir. No hay cambio en la UI — los dos campos se conservan tal como están en el mockup. | Concatenar al hacer el insert: `address = direccion + (complemento ?? '')` |

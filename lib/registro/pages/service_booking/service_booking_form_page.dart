@@ -28,7 +28,22 @@ const _kError = Color(0xFFD32F2F);
 
 
 // ── Chips de hora predefinidos (SPEC §3.3) ───────────────────────────────────
-const _kTimeChips = ['08:00', '09:00', '10:00', '11:00'];
+// Intervalos de 30 min cubriendo la jornada de servicio: 08:00 → 18:00 (21 chips).
+// El chip "Más" permite elegir cualquier otra hora con el picker nativo.
+const int _kTimeStartHour = 8; // 08:00
+const int _kTimeEndHour = 18; // 18:00
+const int _kTimeStepMinutes = 30;
+
+final List<String> _kTimeChips = List<String>.generate(
+  ((_kTimeEndHour - _kTimeStartHour) * 60) ~/ _kTimeStepMinutes + 1,
+  (i) {
+    final totalMinutes = _kTimeStartHour * 60 + i * _kTimeStepMinutes;
+    final hh = (totalMinutes ~/ 60).toString().padLeft(2, '0');
+    final mm = (totalMinutes % 60).toString().padLeft(2, '0');
+    return '$hh:$mm';
+  },
+  growable: false,
+);
 
 class ServiceBookingFormPage extends StatefulWidget {
   const ServiceBookingFormPage({super.key});
