@@ -66,14 +66,7 @@ ins_provincias AS (
   SELECT id, unnest(ARRAY[
     'Bogotá D.C.',
     'Antioquia',
-    'Valle del Cauca',
-    'Atlántico',
-    'Bolívar',
-    'Santander',
-    'Risaralda',
-    'Caldas',
-    'Cundinamarca',
-    'Nariño'
+    'Valle del Cauca'
   ])
   FROM ins_pais
   RETURNING id, nombre
@@ -85,19 +78,7 @@ FROM ins_provincias p
 JOIN (VALUES
   ('Bogotá D.C.',    'Bogotá D.C.'),
   ('Antioquia',      'Medellín'),
-  ('Antioquia',      'Bello'),
-  ('Antioquia',      'Itagüí'),
-  ('Valle del Cauca','Cali'),
-  ('Valle del Cauca','Buenaventura'),
-  ('Atlántico',      'Barranquilla'),
-  ('Atlántico',      'Soledad'),
-  ('Bolívar',        'Cartagena'),
-  ('Santander',      'Bucaramanga'),
-  ('Santander',      'Floridablanca'),
-  ('Risaralda',      'Pereira'),
-  ('Caldas',         'Manizales'),
-  ('Cundinamarca',   'Soacha'),
-  ('Nariño',         'Pasto')
+  ('Valle del Cauca','Cali')
 ) AS c(departamento, nombre) ON p.nombre = c.departamento;
 
 -- ── 7. Índices ────────────────────────────────────────────
