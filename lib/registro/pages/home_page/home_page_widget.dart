@@ -1416,9 +1416,9 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                                               context.pushNamed(
                                                 DetallesWidget.routeName,
                                                 queryParameters: {
-                                                  'rowserv': serializeParam(
-                                                    serviciosDestacadosItem,
-                                                    ParamType.SupabaseRow,
+                                                  'servicioId': serializeParam(
+                                                    serviciosDestacadosItem.id,
+                                                    ParamType.String,
                                                   ),
                                                 }.withoutNulls,
                                               );

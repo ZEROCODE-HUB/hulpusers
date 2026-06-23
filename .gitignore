@@ -1,3 +1,6 @@
+# IDE
+.idea/
+
 # Flutter/Dart
 build/
 .dart_tool/
@@ -10,5 +13,8 @@ build/
 android/app/*.jks
 android/app/*.keystore
 
-# Environment credentials - never commit API keys
-assets/environment_values/environment*.json
+# Environment / credentials
+assets/environment_values/environment.json
+assets/environment_values/environment_test.json
+assets/environment_values/environment_sandbox.json
+credencialesproduccion.txt

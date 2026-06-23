@@ -6,6 +6,8 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import '/index.dart';
+import '/registro/pages/service_booking/service_booking_form_page.dart';
+import '/registro/pages/service_booking/booking_args_store.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'servicios_model.dart';
@@ -238,21 +240,29 @@ class _ServiciosWidgetState extends State<ServiciosWidget> {
                           ),
                         ),
                       ),
-                      Flexible(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.max,
-                          children: [
+                      Column(
+                        mainAxisSize: MainAxisSize.max,
+                        children: [
                             Padding(
                               padding: EdgeInsetsDirectional.fromSTEB(
                                   20.0, 20.0, 20.0, 0.0),
                               child: FutureBuilder<List<ServiciosRow>>(
                                 future: ServiciosTable().queryRows(
-                                  queryFn: (q) => q.eqOrNull(
-                                    'subcategoria_id',
-                                    widget.subcategoria,
-                                  ),
+                                  queryFn: (q) => widget.subcategoria != null
+                                      ? q.eq('subcategoria_id',
+                                          widget.subcategoria!)
+                                      : q,
                                 ),
                                 builder: (context, snapshot) {
+                                  if (snapshot.hasError) {
+                                    return Center(
+                                      child: Text(
+                                        'Error al cargar servicios',
+                                        style: FlutterFlowTheme.of(context)
+                                            .bodyMedium,
+                                      ),
+                                    );
+                                  }
                                   // Customize what your widget looks like when it's loading.
                                   if (!snapshot.hasData) {
                                     return Center(
@@ -323,9 +333,12 @@ class _ServiciosWidgetState extends State<ServiciosWidget> {
                                                             BorderRadius
                                                                 .circular(8.0),
                                                         child: Image.network(
-                                                          listViewServiciosRow
-                                                              .fotos
-                                                              .firstOrNull!,
+                                                          valueOrDefault<String>(
+                                                            listViewServiciosRow
+                                                                .fotos
+                                                                .firstOrNull,
+                                                            'https://picsum.photos/seed/212/600',
+                                                          ),
                                                           width: 96.0,
                                                           height: 96.0,
                                                           fit: BoxFit.cover,
@@ -498,11 +511,12 @@ class _ServiciosWidgetState extends State<ServiciosWidget> {
                                                               DetallesWidget
                                                                   .routeName,
                                                               queryParameters: {
-                                                                'rowserv':
+                                                                'servicioId':
                                                                     serializeParam(
-                                                                  listViewServiciosRow,
+                                                                  listViewServiciosRow
+                                                                      .id,
                                                                   ParamType
-                                                                      .SupabaseRow,
+                                                                      .String,
                                                                 ),
                                                               }.withoutNulls,
                                                             );
@@ -581,18 +595,11 @@ class _ServiciosWidgetState extends State<ServiciosWidget> {
                                                         child: FFButtonWidget(
                                                           onPressed: () async {
                                                             if (loggedIn) {
+                                                              ServiceStore.set(
+                                                                  listViewServiciosRow);
                                                               context.pushNamed(
-                                                                ChatiaWidget
+                                                                ServiceBookingFormPage
                                                                     .routeName,
-                                                                queryParameters:
-                                                                    {
-                                                                  'mensajeinicial':
-                                                                      serializeParam(
-                                                                    'Quiero agendar el servicio de: ${listViewServiciosRow.nombre}',
-                                                                    ParamType
-                                                                        .String,
-                                                                  ),
-                                                                }.withoutNulls,
                                                               );
                                                             } else {
                                                               context.pushNamed(
@@ -695,7 +702,6 @@ class _ServiciosWidgetState extends State<ServiciosWidget> {
                             ),
                           ],
                         ),
-                      ),
                     ],
                   ),
                 ),

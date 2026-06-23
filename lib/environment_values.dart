@@ -1,14 +1,41 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/services.dart';
 
+/// Ambientes disponibles:
+///   Test       → Supabase local (Docker). Automático en kDebugMode sin flag.
+///   Sandbox    → Supabase cloud de staging/QA.
+///   Production → Supabase cloud de producción. Automático en release sin flag.
+///
+/// Cómo seleccionar en Android Studio:
+///   Run > Edit Configurations > Additional run args:
+///     --dart-define=ENVIRONMENT=Test
+///     --dart-define=ENVIRONMENT=Sandbox
+///     --dart-define=ENVIRONMENT=Production
 class FFDevEnvironmentValues {
-  static const String currentEnvironment =
-      String.fromEnvironment('ENVIRONMENT', defaultValue: 'Production');
+  static const String _envFlag =
+      String.fromEnvironment('ENVIRONMENT', defaultValue: '');
 
-  static String get environmentValuesPath =>
-      currentEnvironment == 'Test'
-          ? 'assets/environment_values/environment_test.json'
-          : 'assets/environment_values/environment.json';
+  /// Devuelve 'Test', 'Sandbox' o 'Production'.
+  static String get currentEnvironment {
+    if (_envFlag == 'Test') return 'Test';
+    if (_envFlag == 'Sandbox') return 'Sandbox';
+    if (_envFlag == 'Production') return 'Production';
+    // Sin flag: debug → Test, release → Production
+    return kDebugMode ? 'Test' : 'Production';
+  }
+
+  static String get environmentValuesPath {
+    switch (currentEnvironment) {
+      case 'Sandbox':
+        return 'assets/environment_values/environment_sandbox.json';
+      case 'Production':
+        return 'assets/environment_values/environment.json';
+      case 'Test':
+      default:
+        return 'assets/environment_values/environment_test.json';
+    }
+  }
 
   static final FFDevEnvironmentValues _instance =
       FFDevEnvironmentValues._internal();

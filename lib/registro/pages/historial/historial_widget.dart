@@ -729,22 +729,91 @@ class _HistorialWidgetState extends State<HistorialWidget> {
                                   child: Builder(
                                     builder: (context) {
                                       final historial = () {
+                                        int? segundosHora(PostgresTime? hora) {
+                                          final t = hora?.time;
+                                          if (t == null) {
+                                            return null;
+                                          }
+                                          return t.hour * 3600 +
+                                              t.minute * 60 +
+                                              t.second;
+                                        }
+                                        // Orden por fecha de reserva ascendente
+                                        // y, a igualdad de fecha, por hora de
+                                        // reserva ascendente. Nulos al final.
+                                        int compararPorFechaAsc(
+                                            VwSolicitudesServiciosCompletaRow a,
+                                            VwSolicitudesServiciosCompletaRow
+                                                b) {
+                                          final aFecha = a.fecha;
+                                          final bFecha = b.fecha;
+                                          if (aFecha != null &&
+                                              bFecha != null) {
+                                            final cmpFecha =
+                                                aFecha.compareTo(bFecha);
+                                            if (cmpFecha != 0) {
+                                              return cmpFecha;
+                                            }
+                                          } else if (aFecha == null &&
+                                              bFecha != null) {
+                                            return 1;
+                                          } else if (aFecha != null &&
+                                              bFecha == null) {
+                                            return -1;
+                                          }
+                                          final aHora = segundosHora(a.hora);
+                                          final bHora = segundosHora(b.hora);
+                                          if (aHora == null && bHora == null) {
+                                            return 0;
+                                          }
+                                          if (aHora == null) {
+                                            return 1;
+                                          }
+                                          if (bHora == null) {
+                                            return -1;
+                                          }
+                                          return aHora.compareTo(bHora);
+                                        }
+                                        int prioridadEstado(String? estado) {
+                                          switch (estado) {
+                                            case 'entrantes':
+                                              return 0;
+                                            case 'aceptadas':
+                                              return 1;
+                                            case 'iniciadas':
+                                            case 'en camino':
+                                            case 'en proceso':
+                                              return 2;
+                                            case 'finalizadas':
+                                            case 'reagendadas':
+                                              return 3;
+                                            case 'canceladas':
+                                              return 4;
+                                            default:
+                                              return 5;
+                                          }
+                                        }
+
                                         if (_model.textController.text != '') {
-                                          return containerVwSolicitudesServiciosCompletaRowList;
+                                          return containerVwSolicitudesServiciosCompletaRowList
+                                              .toList()
+                                            ..sort(compararPorFechaAsc);
                                         } else if (_model.seleccion ==
                                             'Pendiente') {
                                           return containerVwSolicitudesServiciosCompletaRowList
                                               .where((e) =>
                                                   e.estadoSolicitud ==
                                                   'entrantes')
-                                              .toList();
+                                              .toList()
+                                            ..sort(compararPorFechaAsc);
                                         } else if (_model.seleccion ==
                                             'Activa') {
                                           return containerVwSolicitudesServiciosCompletaRowList
                                               .where((e) =>
                                                   e.estadoSolicitud ==
                                                   'aceptadas')
-                                              .toList();
+                                              .toList()
+                                            ..sort(compararPorFechaAsc);
                                         } else if (_model.seleccion ==
                                             'En curso') {
                                           return containerVwSolicitudesServiciosCompletaRowList
@@ -754,7 +823,8 @@ class _HistorialWidgetState extends State<HistorialWidget> {
                                                       'en camino') ||
                                                   (e.estadoSolicitud ==
                                                       'en proceso'))
-                                              .toList();
+                                              .toList()
+                                            ..sort(compararPorFechaAsc);
                                         } else if (_model.seleccion ==
                                             'Finalizado') {
                                           return containerVwSolicitudesServiciosCompletaRowList
@@ -763,16 +833,29 @@ class _HistorialWidgetState extends State<HistorialWidget> {
                                                       'finalizadas') ||
                                                   (e.estadoSolicitud ==
                                                       'reagendadas'))
-                                              .toList();
+                                              .toList()
+                                            ..sort(compararPorFechaAsc);
                                         } else if (_model.seleccion ==
                                             'Cancelado') {
                                           return containerVwSolicitudesServiciosCompletaRowList
                                               .where((e) =>
                                                   e.estadoSolicitud ==
                                                   'canceladas')
-                                              .toList();
+                                              .toList()
+                                            ..sort(compararPorFechaAsc);
                                         } else {
-                                          return containerVwSolicitudesServiciosCompletaRowList;
+                                          return containerVwSolicitudesServiciosCompletaRowList
+                                              .toList()
+                                            ..sort((a, b) {
+                                              final cmpEstado = prioridadEstado(
+                                                      a.estadoSolicitud)
+                                                  .compareTo(prioridadEstado(
+                                                      b.estadoSolicitud));
+                                              if (cmpEstado != 0) {
+                                                return cmpEstado;
+                                              }
+                                              return compararPorFechaAsc(a, b);
+                                            });
                                         }
                                       }()
                                           .toList();

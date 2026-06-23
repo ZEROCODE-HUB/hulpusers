@@ -6,6 +6,8 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import '/index.dart';
+import '/registro/pages/service_booking/service_booking_form_page.dart';
+import '/registro/pages/service_booking/booking_args_store.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart'
     as smooth_page_indicator;
 import 'package:flutter/material.dart';
@@ -17,10 +19,10 @@ export 'detalles_model.dart';
 class DetallesWidget extends StatefulWidget {
   const DetallesWidget({
     super.key,
-    required this.rowserv,
+    required this.servicioId,
   });
 
-  final ServiciosRow? rowserv;
+  final String? servicioId;
 
   static String routeName = 'detalles';
   static String routePath = '/detalles';
@@ -34,12 +36,39 @@ class _DetallesWidgetState extends State<DetallesWidget> {
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
+  ServiciosRow? _servicio;
+  bool _loading = true;
+
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => DetallesModel());
-
+    _fetchServicio();
     WidgetsBinding.instance.addPostFrameCallback((_) => safeSetState(() {}));
+  }
+
+  Future<void> _fetchServicio() async {
+    if (widget.servicioId == null) {
+      debugPrint('🔍 DetallesWidget: servicioId is null');
+      if (mounted) safeSetState(() => _loading = false);
+      return;
+    }
+    debugPrint('🔍 DetallesWidget: fetching servicioId=${widget.servicioId}');
+    try {
+      final rows = await ServiciosTable().queryRows(
+        queryFn: (q) => q.eq('id', widget.servicioId!),
+      );
+      debugPrint('🔍 DetallesWidget: query returned ${rows.length} rows');
+      if (mounted) {
+        safeSetState(() {
+          _servicio = rows.isNotEmpty ? rows.first : null;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('🔍 DetallesWidget: fetch error: $e');
+      if (mounted) safeSetState(() => _loading = false);
+    }
   }
 
   @override
@@ -51,6 +80,19 @@ class _DetallesWidgetState extends State<DetallesWidget> {
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return Scaffold(
+        backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
+        body: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(
+              FlutterFlowTheme.of(context).primary,
+            ),
+          ),
+        ),
+      );
+    }
+
     return GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();
@@ -114,7 +156,7 @@ class _DetallesWidgetState extends State<DetallesWidget> {
                     children: [
                       Builder(
                         builder: (context) {
-                          final fotos = widget.rowserv?.fotos.toList() ?? [];
+                          final fotos = _servicio?.fotos.toList() ?? [];
 
                           return Container(
                             width: 400.0,
@@ -186,15 +228,14 @@ class _DetallesWidgetState extends State<DetallesWidget> {
                           );
                         },
                       ),
-                      Expanded(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.max,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Container(
-                                decoration: BoxDecoration(),
-                                child: Column(
+                      Row(
+                        mainAxisSize: MainAxisSize.max,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(),
+                              child: Column(
                                   mainAxisSize: MainAxisSize.max,
                                   children: [
                                     Align(
@@ -205,7 +246,7 @@ class _DetallesWidgetState extends State<DetallesWidget> {
                                             16.0, 20.0, 16.0, 0.0),
                                         child: Text(
                                           valueOrDefault<String>(
-                                            widget.rowserv?.nombre,
+                                            _servicio?.nombre,
                                             'Nombre servicio',
                                           ),
                                           style: FlutterFlowTheme.of(context)
@@ -242,7 +283,7 @@ class _DetallesWidgetState extends State<DetallesWidget> {
                                           Text(
                                             'Desde \$${valueOrDefault<String>(
                                               formatNumber(
-                                                widget.rowserv?.precio,
+                                                _servicio?.precio,
                                                 formatType: FormatType.decimal,
                                                 decimalType:
                                                     DecimalType.periodDecimal,
@@ -292,7 +333,7 @@ class _DetallesWidgetState extends State<DetallesWidget> {
                                               ),
                                               Text(
                                                 valueOrDefault<String>(
-                                                  widget.rowserv?.tiempo,
+                                                  _servicio?.tiempo,
                                                   '2 horas',
                                                 ),
                                                 style: FlutterFlowTheme.of(
@@ -341,7 +382,7 @@ class _DetallesWidgetState extends State<DetallesWidget> {
                                             16.0, 8.0, 16.0, 0.0),
                                         child: Text(
                                           valueOrDefault<String>(
-                                            widget.rowserv?.descripcion,
+                                            _servicio?.descripcion,
                                             'Sin descripción',
                                           ),
                                           style: FlutterFlowTheme.of(context)
@@ -381,7 +422,6 @@ class _DetallesWidgetState extends State<DetallesWidget> {
                             ),
                           ],
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -398,14 +438,11 @@ class _DetallesWidgetState extends State<DetallesWidget> {
                 child: FFButtonWidget(
                   onPressed: () async {
                     if (loggedIn) {
+                      if (_servicio != null) {
+                        ServiceStore.set(_servicio!);
+                      }
                       context.pushNamed(
-                        ChatiaWidget.routeName,
-                        queryParameters: {
-                          'mensajeinicial': serializeParam(
-                            'Quiero agendar el servicio de: ${widget.rowserv?.nombre}',
-                            ParamType.String,
-                          ),
-                        }.withoutNulls,
+                        ServiceBookingFormPage.routeName,
                       );
                     } else {
                       context.pushNamed(

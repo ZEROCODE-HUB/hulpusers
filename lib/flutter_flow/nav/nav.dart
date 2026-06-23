@@ -13,6 +13,8 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 
 import '/index.dart';
+import '/registro/pages/service_booking/service_booking_form_page.dart';
+import '/registro/pages/service_booking/booking_success_page.dart';
 
 export 'package:go_router/go_router.dart';
 export 'serialization_util.dart';
@@ -87,6 +89,17 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           path: '/',
           builder: (context, _) =>
               appStateNotifier.loggedIn ? HomePageWidget() : LoginWidget(),
+        ),
+        // ── REQ-001: rutas del flujo de reserva ──────────────────────────
+        FFRoute(
+          name: ServiceBookingFormPage.routeName,
+          path: ServiceBookingFormPage.routePath,
+          builder: (context, _) => const ServiceBookingFormPage(),
+        ),
+        FFRoute(
+          name: BookingSuccessPage.routeName,
+          path: BookingSuccessPage.routePath,
+          builder: (context, _) => const BookingSuccessPage(),
         ),
         FFRoute(
           name: HomePageWidget.routeName,
@@ -178,9 +191,9 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: DetallesWidget.routeName,
           path: DetallesWidget.routePath,
           builder: (context, params) => DetallesWidget(
-            rowserv: params.getParam<ServiciosRow>(
-              'rowserv',
-              ParamType.SupabaseRow,
+            servicioId: params.getParam<String>(
+              'servicioId',
+              ParamType.String,
             ),
           ),
         ),

@@ -4,6 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 
 import 'auth/supabase_auth/supabase_user_provider.dart';
@@ -19,6 +20,8 @@ void main() async {
   GoRouter.optionURLReflectsImperativeAPIs = true;
   usePathUrlStrategy();
 
+  await initializeDateFormatting('es', null);
+
   final environmentValues = FFDevEnvironmentValues();
   await environmentValues.initialize();
 
@@ -26,7 +29,19 @@ void main() async {
   await actions.initializeOneSignal();
   // End initial custom actions code
 
-  await SupaFlow.initialize();
+  // Timeout de 6 s: evita que la app se congele si Supabase local no está
+  // disponible (Docker caído, URL incorrecta, etc.). En modo mock el formulario
+  // funciona sin backend; en producción la URL correcta resuelve antes del timeout.
+  try {
+    await SupaFlow.initialize().timeout(
+      const Duration(seconds: 6),
+      onTimeout: () => debugPrint(
+        '⚠ Supabase init timeout — arrancando en modo offline/mock',
+      ),
+    );
+  } catch (e) {
+    debugPrint('⚠ Supabase init error: $e — arrancando en modo offline/mock');
+  }
 
   final appState = FFAppState(); // Initialize FFAppState
   await appState.initializePersistedState();
