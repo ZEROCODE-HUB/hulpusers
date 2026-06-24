@@ -445,11 +445,10 @@ class _Registro1WidgetState extends State<Registro1Widget> {
                         children: [
                           Flexible(
                             child: Column(
-                              mainAxisSize: MainAxisSize.max,
+                              mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(
-                                  child: Text(
+                                Text(
                                     'Tipo de documento (opcional)',
                                     style: FlutterFlowTheme.of(context)
                                         .bodyMedium
@@ -477,7 +476,6 @@ class _Registro1WidgetState extends State<Registro1Widget> {
                                                   .fontStyle,
                                         ),
                                   ),
-                                ),
                                 FlutterFlowDropDown<String>(
                                   controller:
                                       _model.documentoValueController ??=
