@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '/custom_code/actions/index.dart' as actions;
 import 'package:provider/provider.dart';
 import 'package:flutter/gestures.dart';
@@ -33,12 +35,9 @@ void main() async {
   // disponible (Docker caído, URL incorrecta, etc.). En modo mock el formulario
   // funciona sin backend; en producción la URL correcta resuelve antes del timeout.
   try {
-    await SupaFlow.initialize().timeout(
-      const Duration(seconds: 6),
-      onTimeout: () => debugPrint(
-        '⚠ Supabase init timeout — arrancando en modo offline/mock',
-      ),
-    );
+    await SupaFlow.initialize().timeout(const Duration(seconds: 6));
+  } on TimeoutException {
+    debugPrint('⚠ Supabase init timeout — arrancando en modo offline/mock');
   } catch (e) {
     debugPrint('⚠ Supabase init error: $e — arrancando en modo offline/mock');
   }
