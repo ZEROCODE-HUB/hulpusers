@@ -25,10 +25,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # AÑADE ESTE PASO AQUÍ:
-      - name: Set Xcode version
-        run: sudo xcode-select -s /Applications/Xcode_26.app/Contents/Developer
-        
+      - name: Select Xcode
+        run: |
+          echo "Xcode instalados en el runner:"
+          ls -d /Applications/Xcode*.app 2>/dev/null || true
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          xcodebuild -version
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
