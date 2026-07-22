@@ -133,6 +133,9 @@ jobs:
           sed -i '' "s/DEVELOPMENT_TEAM = ;/DEVELOPMENT_TEAM = ${APPLE_TEAM_ID};/g" Runner.xcodeproj/project.pbxproj
           cd ..
 
+      - name: Configure Flutter for release
+        run: flutter build ios --config-only --release --no-codesign
+
       - name: Install CocoaPods
         run: |
           cd ios
