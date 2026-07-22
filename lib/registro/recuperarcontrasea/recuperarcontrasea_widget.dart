@@ -1,4 +1,4 @@
-import '/auth/supabase_auth/auth_util.dart';
+import '/backend/supabase/supabase.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
@@ -260,63 +260,45 @@ class _RecuperarcontraseaWidgetState extends State<RecuperarcontraseaWidget> {
                             _model.textFieldEmailTextController.text,
                           );
                           if (_model.emailExist == true) {
-                            if (isAndroid == true) {
-                              if (_model
-                                  .textFieldEmailTextController.text.isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Email required!',
-                                    ),
-                                  ),
-                                );
-                                return;
-                              }
-                              await authManager.resetPassword(
-                                email: _model.textFieldEmailTextController.text,
-                                context: context,
-                                redirectTo:
-                                    "hulp://hulp.com/restablecercontrasea",
+                            final email = _model
+                                .textFieldEmailTextController.text
+                                .trim();
+                            if (email.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Ingresa tu correo')),
                               );
-
-                              context.pushNamed(
-                                Restablecercontrasea3Widget.routeName,
-                                queryParameters: {
-                                  'correo': serializeParam(
-                                    _model.textFieldEmailTextController.text,
-                                    ParamType.String,
-                                  ),
-                                }.withoutNulls,
-                              );
-                            } else {
-                              if (_model
-                                  .textFieldEmailTextController.text.isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Email required!',
-                                    ),
-                                  ),
-                                );
-                                return;
-                              }
-                              await authManager.resetPassword(
-                                email: _model.textFieldEmailTextController.text,
-                                context: context,
-                                redirectTo:
-                                    "https://hulp-usuarios.flutterflow.app/restablecercontrasea",
-                              );
-
-                              context.pushNamed(
-                                Restablecercontrasea3Widget.routeName,
-                                queryParameters: {
-                                  'correo': serializeParam(
-                                    _model.textFieldEmailTextController.text,
-                                    ParamType.String,
-                                  ),
-                                }.withoutNulls,
-                              );
+                              return;
                             }
+                            try {
+                              await SupaFlow.client.auth
+                                  .resetPasswordForEmail(email);
+                            } on AuthException catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text(
+                                        'No se pudo enviar el código: ${e.message}')),
+                              );
+                              safeSetState(() {});
+                              return;
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text(
+                                        'No se pudo enviar el código. Intenta de nuevo.')),
+                              );
+                              safeSetState(() {});
+                              return;
+                            }
+
+                            context.pushNamed(
+                              RestablecerConCodigoWidget.routeName,
+                              queryParameters: {
+                                'correo': serializeParam(
+                                  email,
+                                  ParamType.String,
+                                ),
+                              }.withoutNulls,
+                            );
                           } else {
                             await showDialog(
                               context: context,

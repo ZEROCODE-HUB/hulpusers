@@ -6,7 +6,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import '/custom_code/actions/index.dart' as actions;
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -142,13 +142,10 @@ class _BancolombiaRegistroWidgetState extends State<BancolombiaRegistroWidget> {
                         EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 100.0),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8.0),
-                      child: CachedNetworkImage(
-                        fadeInDuration: Duration(milliseconds: 500),
-                        fadeOutDuration: Duration(milliseconds: 500),
-                        imageUrl:
-                            'https://upload.wikimedia.org/wikipedia/commons/e/e4/Logo_Bancolombia.svg',
+                      child: SvgPicture.asset(
+                        'assets/images/logo_bancolombia.svg',
                         height: 50.0,
-                        fit: BoxFit.cover,
+                        fit: BoxFit.contain,
                       ),
                     ),
                   ),
@@ -158,21 +155,49 @@ class _BancolombiaRegistroWidgetState extends State<BancolombiaRegistroWidget> {
                         _model.apiResultsmp =
                             await BancolombiaSandoboxCall.call();
 
-                        if ((_model.apiResultsmp?.succeeded ?? true)) {
-                          _model.idtoken = getJsonField(
+                        if ((_model.apiResultsmp?.succeeded ?? false)) {
+                          final idBancolombia = getJsonField(
                             (_model.apiResultsmp?.jsonBody ?? ''),
                             r'''$.data.id''',
-                          ).toString();
-                          safeSetState(() {});
-                          FFAppState().idToken = getJsonField(
-                            (_model.apiResultsmp?.jsonBody ?? ''),
-                            r'''$.data.id''',
-                          ).toString();
-                          safeSetState(() {});
-                          await launchURL(getJsonField(
+                          )?.toString();
+                          final authUrl = getJsonField(
                             (_model.apiResultsmp?.jsonBody ?? ''),
                             r'''$.data.authorization_url''',
-                          ).toString());
+                          )?.toString();
+                          if (idBancolombia == null ||
+                              idBancolombia.isEmpty ||
+                              authUrl == null ||
+                              authUrl.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'No se pudo iniciar la conexión con Bancolombia. Intenta de nuevo.',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                duration: Duration(milliseconds: 4000),
+                                backgroundColor:
+                                    FlutterFlowTheme.of(context).error,
+                              ),
+                            );
+                            safeSetState(() {});
+                            return;
+                          }
+                          _model.idtoken = idBancolombia;
+                          FFAppState().idToken = idBancolombia;
+                          safeSetState(() {});
+                          await launchURL(authUrl);
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'No se pudo conectar con Bancolombia. Verifica tu conexión e intenta de nuevo.',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                              duration: Duration(milliseconds: 4000),
+                              backgroundColor:
+                                  FlutterFlowTheme.of(context).error,
+                            ),
+                          );
                         }
 
                         safeSetState(() {});
@@ -246,7 +271,7 @@ class _BancolombiaRegistroWidgetState extends State<BancolombiaRegistroWidget> {
                               );
 
                               if ((_model.verificacionToken?.succeeded ??
-                                  true)) {
+                                  false)) {
                                 if (true) {
                                   _model.apiPaymentSource =
                                       await BancolombiaPaymentsourcesCall.call(
@@ -263,7 +288,7 @@ class _BancolombiaRegistroWidgetState extends State<BancolombiaRegistroWidget> {
                                   );
 
                                   if ((_model.apiPaymentSource?.succeeded ??
-                                      true)) {
+                                      false)) {
                                     _model.subida =
                                         await MetodosPagoTable().insert({
                                       'usuario_id': currentUserUid,
@@ -378,6 +403,18 @@ class _BancolombiaRegistroWidgetState extends State<BancolombiaRegistroWidget> {
                                     );
                                   }
                                 }
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'No se pudo verificar la aprobación con Bancolombia. Aprueba la solicitud en el portal de Bancolombia e inténtalo de nuevo.',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                    duration: Duration(milliseconds: 4000),
+                                    backgroundColor:
+                                        FlutterFlowTheme.of(context).error,
+                                  ),
+                                );
                               }
 
                               safeSetState(() {});

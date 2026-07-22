@@ -1,8 +1,9 @@
 # SPEC UI — REQ-001: Formulario de Reserva y Pantalla de Éxito
-> Sprint: S 05-2026 · Versión: 1.10 · Estado: **IMPLEMENTADO**
+> Sprint: S 05-2026 · Versión: 1.11 · Estado: **IMPLEMENTADO**
 > Referencia visual: mockup adjunto (imagen entregada el 2026-06-10)
 >
 > **Changelog:**
+> - v1.11 (2026-07-07): **fix de agendamiento** — el insert de `solicitudes_servicio` fallaba con `23505 unique_violation` en `ticket`. Causa real: `ticket` tiene `DEFAULT nextval('ticket_seq')` + `UNIQUE`, pero el panel admin insertaba `ticket` como `MAX+1` explícito **sin avanzar la secuencia**; ésta quedó rezagada (1458 vs MAX 1460) y colisionaba al omitir `ticket`. Fix: resincronizar `ticket_seq` (migración `0002_resync_ticket_seq.sql`, aplicada en prod el 2026-07-07) y hacer que el admin use la secuencia. El insert de la app queda explícito en `tipo`/`estado_pago`/`precio_base`/`precio_adicionales` por claridad (§6.1). §3.8 el menú inferior pasa a usar el componente compartido `MenuBarWidget` (antes un `BottomNavigationBar` local sin navegación).
 > - v1.10 (2026-06-19): §3.3 el rango de los chips de hora se ajusta a la jornada laboral 08:00–18:00 (21 chips, intervalos de 30 min). El chip "Más" se mantiene para horas fuera de ese rango.
 > - v1.9 (2026-06-19): §3.3 los chips de hora predefinidos pasan de intervalos de 1 h (08:00–11:00) a intervalos de 30 min cubriendo toda la jornada de servicio: 06:00 a 20:00 (29 chips). El chip "Más" se mantiene para horas personalizadas. Afecta §2.3, §5.3 e IP-03.
 > - v1.8 (2026-06-15): §3.3 el selector de hora ("Más") abre por defecto en modo de entrada manual (`TimePickerEntryMode.input`) en lugar del reloj.
@@ -328,11 +329,10 @@ Label: "Complemento / referencia (opcional)"
 [🏠 Inicio]   [🕐 Solicitudes]   [👤 Cuenta]
 ```
 
-- **Background:** `colorBackground` con sombra superior `BoxShadow(blurRadius:12, color: rgba(0,0,0,0.08), offset:(0,-2))`
-- **Ítems:** 3 ítems con ícono + label
-- **Ítem activo:** color `colorPrimary`
-- **Ítem inactivo:** color `colorTextSecondary`
-- **Altura total incluyendo safe area:** ~72 dp + safe area bottom
+- **Componente:** se reutiliza el menú inferior compartido de la app, `MenuBarWidget` (`lib/components/menu_bar_widget.dart`) — el mismo de Home/Servicios/Perfil. **No** se usa un `BottomNavigationBar` local (v1.11).
+- **Integración:** se coloca como último hijo de un `Stack` que envuelve el `body`, anclado al fondo (patrón estándar del resto de la app). El `SingleChildScrollView` lleva padding inferior (~120 dp) para que el contenido no quede tapado por el menú.
+- **Navegación:** la provee `MenuBarWidget` vía `context.pushNamed` (Inicio → `HomePageWidget`; Solicitudes → `HistorialWidget` o login; Cuenta → `MiperfilWidget` o login).
+- **Estilo:** definido por `MenuBarWidget` (fondo `#EFF3ED`, esquinas superiores redondeadas 25, íconos SVG). Se instancia con `index: 0`.
 
 ---
 
@@ -519,21 +519,25 @@ Al confirmar el formulario (`_onAgendar`), se hace un insert a `solicitudes_serv
 | `ciudad_id` | `_selectedCiudad.id` | `uuid` | FK a tabla `ciudad` — resuelve IP-04 |
 | `ubicacion` | `ciudad.nombre + '\n' + direccion + '\n' + complemento` | `String` | Concatenación legible para historial |
 | `estado` | `'entrantes'` | `String` | Estado inicial fijo. Debe ser `entrantes` para que el proveedor (HulpTalent) pueda leer la solicitud de servicio |
+| `estado_pago` | `'pendiente'` | `String` | Nullable en BD; se envía explícito. CHECK: `pendiente`/`pagado`/`reembolsado`/`fallido` |
+| `tipo` | `'app'` | `String` | Origen de la solicitud. BD tiene `DEFAULT 'app'`; se envía explícito (el panel admin usa `externo`) |
+| `precio_base` | `_servicio.precio` | `double` | Base para el desglose de precio (nullable en BD) |
+| `precio_adicionales` | `0.0` | `double` | `NOT NULL DEFAULT 0` en BD. Sin adicionales al momento de crear |
 
 ### 6.2 Campos que NO se llenan en el insert inicial
 
-Los siguientes campos de la tabla se dejan vacíos (`null`) en el momento del agendamiento y son gestionados por flujos posteriores:
+Los siguientes campos de la tabla se dejan vacíos (`null` / DEFAULT de BD) al agendar y son gestionados por flujos posteriores:
 
 - `profesional_id` — se asigna cuando un profesional acepta
-- `estado_pago` — lo gestiona el flujo de pagos
-- `ticket` — número de ticket, lo asigna el backend
-- `precio_base`, `precio_adicionales` — desglose de precio, sprint posterior
+- `ticket` — **lo autogenera la secuencia `ticket_seq`** (DEFAULT de la columna); se omite en el insert
 - `fecha_cancelacion`, `fecha_reagendamiento`, `fecha_pago`, `fecha_aceptacion` — eventos futuros
-- `solicitud_original_id`, `tipo` — para solicitudes derivadas
+- `solicitud_original_id` — para solicitudes derivadas
+
+> ⚠️ **Nota v1.11:** `estado_pago`, `precio_base`, `precio_adicionales` y `tipo` **no** eran la causa del fallo (tienen DEFAULT o son nullable en la BD); se envían explícitos por claridad del contrato. La causa real del error "No se pudo agendar el servicio" era la secuencia `ticket_seq` **desincronizada** por el cálculo manual del ticket en el panel admin (insertaba `MAX+1` sin avanzar la secuencia, generando colisiones con el `UNIQUE(ticket)`). Fix: migración `0002_resync_ticket_seq.sql` + el admin ahora usa la secuencia.
 
 ### 6.3 Retorno del insert
 
-El insert retorna la fila creada. El `id` y `ticket` (si el backend los genera automáticamente) se usan para armar el `solicitudId` que se muestra en `BookingSuccessPage`.
+El insert retorna la fila creada. El `id` y el `ticket` (autogenerado por la secuencia de BD, migración 0002) se usan para armar el `solicitudId` que se muestra en `BookingSuccessPage`.
 
 ```dart
 // Prioridad para mostrar el número de solicitud:

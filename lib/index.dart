@@ -18,6 +18,8 @@ export '/registro/restablecercontrasea/restablecercontrasea_widget.dart'
     show RestablecercontraseaWidget;
 export '/registro/recuperarcontrasea/recuperarcontrasea_widget.dart'
     show RecuperarcontraseaWidget;
+export '/registro/restablecer_con_codigo/restablecer_con_codigo_widget.dart'
+    show RestablecerConCodigoWidget;
 export '/registro/restablecercontrasea3/restablecercontrasea3_widget.dart'
     show Restablecercontrasea3Widget;
 export '/registro/login/login_widget.dart' show LoginWidget;
@@ -31,6 +33,8 @@ export '/desactivarcuenta/desactivarcuenta_widget.dart'
     show DesactivarcuentaWidget;
 export '/datos_personales/datos_personales_widget.dart'
     show DatosPersonalesWidget;
+export '/cambiar_contrasena/cambiar_contrasena_widget.dart'
+    show CambiarContrasenaWidget;
 export '/registro/pages/busquedas/busquedas_widget.dart' show BusquedasWidget;
 export '/registro/pages/chat/chat_widget.dart' show ChatWidget;
 export '/pago/pago_widget.dart' show PagoWidget;

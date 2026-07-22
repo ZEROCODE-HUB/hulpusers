@@ -1,3 +1,5 @@
+import '/auth/supabase_auth/auth_util.dart';
+import '/backend/supabase/supabase.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
@@ -118,7 +120,36 @@ class _DaviPlataRegistroWidgetState extends State<DaviPlataRegistroWidget> {
                       r'''$.acceptanceToken''',
                     ).toString(),
                     acceptPersonalAuth: '1234',
-                    onSuccess: (paymentSourceId, tokenId) async {},
+                    onSuccess: (paymentSourceId, tokenId) async {
+                      // Guardar el método de pago Daviplata recién creado en Wompi.
+                      await MetodosPagoTable().insert({
+                        'usuario_id': currentUserUid,
+                        'payment_source_id': paymentSourceId,
+                        'tipo': 'DAVIPLATA',
+                        'estado': 'Activo',
+                        'email_cliente': valueOrDefault<String>(
+                          currentUserEmail,
+                          'admin@hulp.com',
+                        ),
+                        'tipo_cuenta': 'DAVIPLATA',
+                        'numero_producto': tokenId,
+                        'es_predeterminado': true,
+                      });
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Daviplata vinculado correctamente',
+                            style: TextStyle(
+                              color: FlutterFlowTheme.of(context).primaryText,
+                            ),
+                          ),
+                          duration: Duration(milliseconds: 3000),
+                          backgroundColor: FlutterFlowTheme.of(context).primary,
+                        ),
+                      );
+                      context.pop();
+                    },
                     onError: (error) async {},
                   ),
                 ),

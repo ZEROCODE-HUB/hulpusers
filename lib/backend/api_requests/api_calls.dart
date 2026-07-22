@@ -129,8 +129,7 @@ class FinalSendgridCallCall {
       apiUrl: 'https://api.sendgrid.com/v3/mail/send',
       callType: ApiCallType.POST,
       headers: {
-        'Authorization':
-            'Bearer YOUR_SENDGRID_API_KEY',
+        'Authorization': 'Bearer YOUR_SENDGRID_API_KEY',
         'Content-Type': 'application/json',
       },
       params: {},
@@ -148,6 +147,9 @@ class FinalSendgridCallCall {
 
 class BancolombiaSandoboxCall {
   static Future<ApiCallResponse> call() async {
+    final baseUrl = FFDevEnvironmentValues().isProduction
+        ? 'https://production.wompi.co/v1'
+        : 'https://sandbox.wompi.co/v1';
     final ffApiRequestBody = '''
 {
   "redirect_url": "https://hulp-usuarios.flutterflow.app/succesVerification",
@@ -155,7 +157,7 @@ class BancolombiaSandoboxCall {
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Bancolombia Sandobox',
-      apiUrl: 'https://production.wompi.co/v1/tokens/bancolombia_transfer',
+      apiUrl: '$baseUrl/tokens/bancolombia_transfer',
       callType: ApiCallType.POST,
       headers: {
         'Authorization': 'Bearer ${FFDevEnvironmentValues().publicKey}',
@@ -204,10 +206,12 @@ class BancolombiaVerificacionIDCall {
   static Future<ApiCallResponse> call({
     String? token = '',
   }) async {
+    final baseUrl = FFDevEnvironmentValues().isProduction
+        ? 'https://production.wompi.co/v1'
+        : 'https://sandbox.wompi.co/v1';
     return ApiManager.instance.makeApiCall(
       callName: 'Bancolombia verificacion ID',
-      apiUrl:
-          'https://production.wompi.co/v1/tokens/bancolombia_transfer/${token}',
+      apiUrl: '$baseUrl/tokens/bancolombia_transfer/${token}',
       callType: ApiCallType.GET,
       headers: {
         'Authorization': 'Bearer ${FFDevEnvironmentValues().publicKey}',
@@ -256,6 +260,9 @@ class BancolombiaPaymentsourcesCall {
     String? acceptanceToken = '',
     String? acceptPersonalAuth = '',
   }) async {
+    final baseUrl = FFDevEnvironmentValues().isProduction
+        ? 'https://production.wompi.co/v1'
+        : 'https://sandbox.wompi.co/v1';
     final ffApiRequestBody = '''
 {
   "type": "BANCOLOMBIA_TRANSFER",
@@ -267,7 +274,7 @@ class BancolombiaPaymentsourcesCall {
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Bancolombia paymentsources',
-      apiUrl: 'https://production.wompi.co/v1/payment_sources',
+      apiUrl: '$baseUrl/payment_sources',
       callType: ApiCallType.POST,
       headers: {
         'Authorization': 'Bearer ${FFDevEnvironmentValues().publicKey}',

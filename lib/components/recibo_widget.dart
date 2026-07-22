@@ -460,6 +460,52 @@ class _ReciboWidgetState extends State<ReciboWidget> {
                                     ),
                                   );
                                   _shouldSetState = true;
+                                  // Resolver el método de pago: tarjeta activa o,
+                                  // si no hay, un método alternativo activo.
+                                  int? psId;
+                                  String metodoLabel = 'Tarjeta';
+                                  final tarjetaActiva = _model.tarjeta1
+                                      ?.where((t) => t.activa == true)
+                                      .firstOrNull;
+                                  if (tarjetaActiva != null) {
+                                    psId = functions.stringToIngeter(
+                                        tarjetaActiva.paymentSourceId);
+                                  } else {
+                                    final metodos =
+                                        await MetodosPagoTable().queryRows(
+                                      queryFn: (q) => q.eqOrNull(
+                                          'usuario_id', currentUserUid),
+                                    );
+                                    final metodo = metodos
+                                        .where((m) =>
+                                            m.estado.toLowerCase() ==
+                                                'activo' ||
+                                            m.estado.toLowerCase() == 'active')
+                                        .firstOrNull;
+                                    if (metodo != null) {
+                                      psId = metodo.paymentSourceId;
+                                      metodoLabel = metodo.tipo;
+                                    }
+                                  }
+                                  if (psId == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'No tienes un método de pago disponible. Agrega uno para pagar.',
+                                          style: TextStyle(
+                                            color: FlutterFlowTheme.of(context)
+                                                .primaryText,
+                                          ),
+                                        ),
+                                        duration: Duration(milliseconds: 4000),
+                                        backgroundColor:
+                                            FlutterFlowTheme.of(context)
+                                                .secondary,
+                                      ),
+                                    );
+                                    if (_shouldSetState) safeSetState(() {});
+                                    return;
+                                  }
                                   _model.aceptaceToken2 =
                                       await actions.getAcceptanceToken(
                                     FFDevEnvironmentValues().publicKey,
@@ -474,8 +520,7 @@ class _ReciboWidgetState extends State<ReciboWidget> {
                                         await actions.createTransaction(
                                       FFDevEnvironmentValues().privateKey,
                                       FFDevEnvironmentValues().publicKey,
-                                      functions.stringToIngeter(_model.tarjeta1!
-                                          .firstOrNull!.paymentSourceId),
+                                      psId,
                                       getJsonField(
                                         _model.aceptaceToken2,
                                         r'''$.acceptanceToken''',
@@ -507,7 +552,7 @@ class _ReciboWidgetState extends State<ReciboWidget> {
                                           'fecha_registro':
                                               supaSerialize<DateTime>(
                                                   getCurrentTimestamp),
-                                          'metodo_pago': 'Tarjeta',
+                                          'metodo_pago': metodoLabel,
                                           'solicitud_id':
                                               widget.recibo?.solicitudId,
                                         });

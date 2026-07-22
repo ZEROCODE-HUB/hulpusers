@@ -748,15 +748,14 @@ class _PagoWidgetState extends State<PagoWidget> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  _model.tokenizeResult!.toString(),
+                                  'No se pudo guardar la tarjeta. Verifica los datos e intenta de nuevo.',
                                   style: TextStyle(
-                                    color: FlutterFlowTheme.of(context)
-                                        .primaryText,
+                                    color: Colors.white,
                                   ),
                                 ),
                                 duration: Duration(milliseconds: 4000),
                                 backgroundColor:
-                                    FlutterFlowTheme.of(context).success,
+                                    FlutterFlowTheme.of(context).error,
                               ),
                             );
                             if (_shouldSetState) safeSetState(() {});
@@ -771,13 +770,12 @@ class _PagoWidgetState extends State<PagoWidget> {
                                   r'''$.error''',
                                 ).toString(),
                                 style: TextStyle(
-                                  color:
-                                      FlutterFlowTheme.of(context).primaryText,
+                                  color: Colors.white,
                                 ),
                               ),
                               duration: Duration(milliseconds: 4000),
                               backgroundColor:
-                                  FlutterFlowTheme.of(context).success,
+                                  FlutterFlowTheme.of(context).error,
                             ),
                           );
                           if (_shouldSetState) safeSetState(() {});
@@ -789,12 +787,11 @@ class _PagoWidgetState extends State<PagoWidget> {
                             content: Text(
                               'Error al guardar tarjeta',
                               style: TextStyle(
-                                color: FlutterFlowTheme.of(context).primaryText,
+                                color: Colors.white,
                               ),
                             ),
                             duration: Duration(milliseconds: 4000),
-                            backgroundColor:
-                                FlutterFlowTheme.of(context).success,
+                            backgroundColor: FlutterFlowTheme.of(context).error,
                           ),
                         );
                       }

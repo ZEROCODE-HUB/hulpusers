@@ -1,4 +1,5 @@
 import '/auth/supabase_auth/auth_util.dart';
+import '/backend/supabase/supabase.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
@@ -272,7 +273,36 @@ class _NequiRegistroWidgetState extends State<NequiRegistroWidget> {
                     buttonText: 'Vincula',
                     buttonColor: FlutterFlowTheme.of(context).primary,
                     textColor: FlutterFlowTheme.of(context).secondaryBackground,
-                    onSuccess: (paymentSourceId) async {},
+                    onSuccess: (paymentSourceId) async {
+                      // Guardar el método de pago Nequi recién creado en Wompi.
+                      await MetodosPagoTable().insert({
+                        'usuario_id': currentUserUid,
+                        'payment_source_id': paymentSourceId,
+                        'tipo': 'NEQUI',
+                        'estado': 'Activo',
+                        'email_cliente': valueOrDefault<String>(
+                          currentUserEmail,
+                          'admin@hulp.com',
+                        ),
+                        'tipo_cuenta': 'NEQUI',
+                        'numero_telefono': _model.textController.text,
+                        'es_predeterminado': true,
+                      });
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Nequi vinculado correctamente',
+                            style: TextStyle(
+                              color: FlutterFlowTheme.of(context).primaryText,
+                            ),
+                          ),
+                          duration: Duration(milliseconds: 3000),
+                          backgroundColor: FlutterFlowTheme.of(context).primary,
+                        ),
+                      );
+                      context.pop();
+                    },
                     onError: (error) async {},
                   ),
                 ),

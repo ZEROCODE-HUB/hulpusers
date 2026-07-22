@@ -280,6 +280,21 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           ),
         ),
         FFRoute(
+          name: RestablecerConCodigoWidget.routeName,
+          path: RestablecerConCodigoWidget.routePath,
+          builder: (context, params) => RestablecerConCodigoWidget(
+            correo: params.getParam(
+              'correo',
+              ParamType.String,
+            ),
+          ),
+        ),
+        FFRoute(
+          name: CambiarContrasenaWidget.routeName,
+          path: CambiarContrasenaWidget.routePath,
+          builder: (context, params) => CambiarContrasenaWidget(),
+        ),
+        FFRoute(
           name: LoginWidget.routeName,
           path: LoginWidget.routePath,
           builder: (context, params) => LoginWidget(),

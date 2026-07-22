@@ -9,6 +9,10 @@ import '/auth/supabase_auth/auth_util.dart';
 import '/backend/supabase/database/tables/servicios.dart';
 import '/backend/supabase/database/tables/solicitudes_servicio.dart';
 import '/backend/supabase/database/tables/ciudades.dart';
+import '/backend/supabase/database/tables/tarjetas_guardadas.dart';
+import '/backend/supabase/database/tables/metodos_pago.dart';
+import '/metodos_de_pago/metodos_de_pago_widget.dart';
+import '/components/menu_bar_widget.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import 'booking_success_page.dart';
 import 'booking_args_store.dart';
@@ -25,7 +29,6 @@ const _kBorderSelected = Color(0xFF2D8653);
 const _kTextPrimary = Color(0xFF0D0D0D);
 const _kTextSecondary = Color(0xFF757575);
 const _kError = Color(0xFFD32F2F);
-
 
 // ── Chips de hora predefinidos (SPEC §3.3) ───────────────────────────────────
 // Intervalos de 30 min cubriendo la jornada de servicio: 08:00 → 18:00 (21 chips).
@@ -56,7 +59,6 @@ class ServiceBookingFormPage extends StatefulWidget {
 }
 
 class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
-
   ServiciosRow? _servicio;
 
   DateTime? _selectedDate;
@@ -79,8 +81,7 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
     if (precio == null) return '';
     final formatted = precio
         .toStringAsFixed(0)
-        .replaceAllMapped(
-            RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+        .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
     return 'Desde \$$formatted';
   }
 
@@ -93,16 +94,15 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
     _servicio = ServiceStore.consume();
     _ciudadesFuture = CiudadesTable()
         .queryRows(
-          queryFn: (q) => q.eq('activo', true).order('nombre', ascending: true),
-        )
+      queryFn: (q) => q.eq('activo', true).order('nombre', ascending: true),
+    )
         .then((rows) {
-          debugPrint('🏙️ ciudades loaded: ${rows.length} rows');
-          return rows;
-        })
-        .catchError((e) {
-          debugPrint('🏙️ ciudades error: $e');
-          throw e;
-        });
+      debugPrint('🏙️ ciudades loaded: ${rows.length} rows');
+      return rows;
+    }).catchError((e) {
+      debugPrint('🏙️ ciudades error: $e');
+      throw e;
+    });
   }
 
   @override
@@ -118,6 +118,8 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
     if (_selectedDate == null) _errors['date'] = 'La fecha es obligatoria';
     if (_selectedTimeChip == null) _errors['time'] = 'La hora es obligatoria';
     if (_selectedCiudad == null) _errors['ciudad'] = 'La ciudad es obligatoria';
+    if (_addressCtrl.text.trim().isEmpty)
+      _errors['address'] = 'La dirección es obligatoria';
 
     return _errors.isEmpty;
   }
@@ -128,10 +130,56 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
       setState(() {});
       return;
     }
+    // No permitir agendar si el servicio no tiene un precio válido (evita crear
+    // solicitudes con precio 0 que luego no se pueden cobrar).
+    if ((_servicio?.precio ?? 0) <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Este servicio no tiene un precio válido. Inténtalo más tarde.',
+            style: GoogleFonts.inter(fontSize: 14, color: Colors.white),
+          ),
+          backgroundColor: _kError,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      return;
+    }
     setState(() => _isSubmitting = true);
 
+    // Validar que el usuario tenga un método de pago antes de crear la solicitud.
+    // El cobro se realiza al finalizar el servicio, así que debe existir un método
+    // de pago asociado (tarjeta o Nequi/Daviplata/Bancolombia).
     try {
+      final tieneMetodo = await _tieneMetodoPago();
+      if (!mounted) return;
+      if (!tieneMetodo) {
+        setState(() => _isSubmitting = false);
+        await _promptAgregarMetodoPago();
+        return;
+      }
+    } catch (e) {
+      debugPrint('🔴 verificación método de pago error: $e');
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'No se pudo verificar tu método de pago. Intenta de nuevo.',
+            style: GoogleFonts.inter(fontSize: 14, color: Colors.white),
+          ),
+          backgroundColor: _kError,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      return;
+    }
 
+    try {
       final direccion = _addressCtrl.text.trim();
       final complemento = _complementoCtrl.text.trim();
       final nombreCiudad = _selectedCiudad!.nombre;
@@ -142,7 +190,6 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
       ];
       final ubicacion = ubicacionParts.join('\n');
 
-
       final horaStr = '${_selectedTimeChip!}:00';
 
       final row = await SolicitudesServicioTable().insert({
@@ -151,11 +198,19 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
         'servicio_nombre': _serviceName.isEmpty ? null : _serviceName,
         'descripcion': _serviceDesc.isEmpty ? null : _serviceDesc,
         'precio': _servicio?.precio ?? 0.0,
+        // `ticket` se omite a propósito: lo autogenera la secuencia `ticket_seq`
+        // (DEFAULT de la columna en la BD). Estos campos se envían explícitos
+        // para dejar claro el contrato (origen, estado de pago y desglose de
+        // precio), igual que el insert del panel admin.
+        'precio_base': _servicio?.precio ?? 0.0,
+        'precio_adicionales': 0.0,
         'fecha': _selectedDate!.toIso8601String().split('T').first,
         'hora': horaStr,
         'ubicacion': ubicacion,
         'ciudad_id': _selectedCiudad?.id,
         'estado': 'entrantes',
+        'estado_pago': 'pendiente',
+        'tipo': 'app',
       });
 
       if (!mounted) return;
@@ -180,7 +235,9 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
       ));
       context.pushNamed(BookingSuccessPage.routeName);
     } catch (e) {
-      debugPrint('🔴 _onAgendar error: $e');
+      // El tipo y el toString de PostgrestException incluyen code/message/details/hint,
+      // útiles para diagnosticar el fallo del insert.
+      debugPrint('🔴 _onAgendar error (${e.runtimeType}): $e');
       if (!mounted) return;
       setState(() => _isSubmitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -195,6 +252,59 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
+    }
+  }
+
+  /// True si el usuario tiene al menos un método de pago utilizable:
+  /// una tarjeta activa o un método alternativo (Nequi/Daviplata/Bancolombia) activo.
+  Future<bool> _tieneMetodoPago() async {
+    final tarjetas = await TarjetasGuardadasTable().queryRows(
+      queryFn: (q) => q.eq('usuario_id', currentUserUid),
+    );
+    if (tarjetas.any((t) => t.activa == true)) return true;
+    final metodos = await MetodosPagoTable().queryRows(
+      queryFn: (q) => q.eq('usuario_id', currentUserUid),
+    );
+    return metodos.any((m) =>
+        m.estado.toLowerCase() == 'activo' ||
+        m.estado.toLowerCase() == 'active');
+  }
+
+  /// Informa que falta un método de pago y, si el usuario acepta, lo lleva a la
+  /// pantalla de métodos de pago. Se usa `pushNamed` (no `go`) para preservar el
+  /// estado de este formulario: al volver, el usuario presiona "Agendar" de nuevo.
+  Future<void> _promptAgregarMetodoPago() async {
+    final ir = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Método de pago requerido',
+          style: GoogleFonts.inter(
+              fontWeight: FontWeight.w600, color: _kTextPrimary),
+        ),
+        content: Text(
+          'Para agendar un servicio necesitas un método de pago asociado. '
+          'El cobro se realiza únicamente al finalizar el servicio.',
+          style: GoogleFonts.inter(fontSize: 14, color: _kTextSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancelar',
+                style: GoogleFonts.inter(color: _kTextSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Agregar método',
+                style: GoogleFonts.inter(
+                    color: _kButton, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+    if (ir == true && mounted) {
+      await context.pushNamed(MetodosDePagoWidget.routeName);
     }
   }
 
@@ -219,7 +329,6 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
     final picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
-      
       initialEntryMode: TimePickerEntryMode.input,
     );
     if (picked != null && mounted) {
@@ -255,130 +364,140 @@ class _ServiceBookingFormState extends State<ServiceBookingFormPage> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _ServiceCard(
-              name: _serviceName,
-              desc: _serviceDesc,
-              price: _servicePrice,
-              imageUrl: _serviceImage,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Agenda tu servicio',
-              style: GoogleFonts.inter(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: _kTextPrimary,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Cuéntanos cuándo y dónde necesitas el servicio.',
-              style: GoogleFonts.inter(fontSize: 14, color: _kTextSecondary),
-            ),
-            const SizedBox(height: 20),
-
-            // Fecha
-            const _FieldLabel('Fecha'),
-            const SizedBox(height: 6),
-            _PickerField(
-              value: _dateLabel,
-              icon: Icons.event_outlined,
-              hasError: _errors.containsKey('date'),
-              errorText: _errors['date'],
-              onTap: _pickDate,
-              trailing: const Icon(Icons.keyboard_arrow_right,
-                  color: _kAccent, size: 20),
-            ),
-            const SizedBox(height: 20),
-
-            // Hora
-            const _FieldLabel('Hora'),
-            const SizedBox(height: 6),
-            _TimeChipSelector(
-              selectedChip: _selectedTimeChip,
-              hasError: _errors.containsKey('time'),
-              errorText: _errors['time'],
-              onChipSelected: (val) => setState(() {
-                _selectedTimeChip = val;
-                _errors.remove('time');
-              }),
-              onMore: _pickTime,
-            ),
-            const SizedBox(height: 20),
-
-            // Ciudad
-            const _FieldLabel('Ciudad'),
-            const SizedBox(height: 6),
-            _CiudadDropdown(
-              ciudadesFuture: _ciudadesFuture,
-              value: _selectedCiudad,
-              hasError: _errors.containsKey('ciudad'),
-              errorText: _errors['ciudad'],
-              onChanged: (val) => setState(() {
-                _selectedCiudad = val;
-                _errors.remove('ciudad');
-              }),
-            ),
-            const SizedBox(height: 20),
-
-            // Dirección
-            const _FieldLabel('Dirección'),
-            const SizedBox(height: 6),
-            _AddressField(
-              controller: _addressCtrl,
-              hint: 'Calle 85 # 15-32, Oficina 502',
-            ),
-            const SizedBox(height: 20),
-
-            // Complemento
-            const _FieldLabel('Complemento / referencia (opcional)'),
-            const SizedBox(height: 6),
-            _ComplementoField(controller: _complementoCtrl),
-            const SizedBox(height: 32),
-
-            // Botón Agendar
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: _isSubmitting ? null : _onAgendar,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _kButton,
-                  disabledBackgroundColor: _kButton.withOpacity(0.6),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  elevation: 0,
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            // Padding inferior extra para que el contenido no quede tapado por
+            // el menú inferior flotante (MenuBarWidget).
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ServiceCard(
+                  name: _serviceName,
+                  desc: _serviceDesc,
+                  price: _servicePrice,
+                  imageUrl: _serviceImage,
                 ),
-                child: _isSubmitting
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          color: Colors.white,
-                        ),
-                      )
-                    : Text(
-                        'Agendar',
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                        ),
+                const SizedBox(height: 24),
+                Text(
+                  'Agenda tu servicio',
+                  style: GoogleFonts.inter(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: _kTextPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Cuéntanos cuándo y dónde necesitas el servicio.',
+                  style:
+                      GoogleFonts.inter(fontSize: 14, color: _kTextSecondary),
+                ),
+                const SizedBox(height: 20),
+
+                // Fecha
+                const _FieldLabel('Fecha'),
+                const SizedBox(height: 6),
+                _PickerField(
+                  value: _dateLabel,
+                  icon: Icons.event_outlined,
+                  hasError: _errors.containsKey('date'),
+                  errorText: _errors['date'],
+                  onTap: _pickDate,
+                  trailing: const Icon(Icons.keyboard_arrow_right,
+                      color: _kAccent, size: 20),
+                ),
+                const SizedBox(height: 20),
+
+                // Hora
+                const _FieldLabel('Hora'),
+                const SizedBox(height: 6),
+                _TimeChipSelector(
+                  selectedChip: _selectedTimeChip,
+                  hasError: _errors.containsKey('time'),
+                  errorText: _errors['time'],
+                  onChipSelected: (val) => setState(() {
+                    _selectedTimeChip = val;
+                    _errors.remove('time');
+                  }),
+                  onMore: _pickTime,
+                ),
+                const SizedBox(height: 20),
+
+                // Ciudad
+                const _FieldLabel('Ciudad'),
+                const SizedBox(height: 6),
+                _CiudadDropdown(
+                  ciudadesFuture: _ciudadesFuture,
+                  value: _selectedCiudad,
+                  hasError: _errors.containsKey('ciudad'),
+                  errorText: _errors['ciudad'],
+                  onChanged: (val) => setState(() {
+                    _selectedCiudad = val;
+                    _errors.remove('ciudad');
+                  }),
+                ),
+                const SizedBox(height: 20),
+
+                // Dirección
+                const _FieldLabel('Dirección'),
+                const SizedBox(height: 6),
+                _AddressField(
+                  controller: _addressCtrl,
+                  hint: 'Calle 85 # 15-32, Oficina 502',
+                  errorText: _errors['address'],
+                ),
+                const SizedBox(height: 20),
+
+                // Complemento
+                const _FieldLabel('Complemento / referencia (opcional)'),
+                const SizedBox(height: 6),
+                _ComplementoField(controller: _complementoCtrl),
+                const SizedBox(height: 32),
+
+                // Botón Agendar
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _isSubmitting ? null : _onAgendar,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _kButton,
+                      disabledBackgroundColor: _kButton.withOpacity(0.6),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
                       ),
-              ),
+                      elevation: 0,
+                    ),
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            'Agendar',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
             ),
-            const SizedBox(height: 24),
-          ],
-        ),
+          ),
+          // Menú inferior compartido, anclado al fondo (patrón estándar del
+          // resto de la app). MenuBarWidget ya se alinea abajo internamente.
+          const MenuBarWidget(index: 0),
+        ],
       ),
-      bottomNavigationBar: const _HulpBottomNav(currentIndex: 0),
     );
   }
 }
@@ -405,7 +524,8 @@ class _ServiceCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _kBorder),
         boxShadow: const [
-          BoxShadow(blurRadius: 6, color: Color(0x0F000000), offset: Offset(0, 2)),
+          BoxShadow(
+              blurRadius: 6, color: Color(0x0F000000), offset: Offset(0, 2)),
         ],
       ),
       child: Row(
@@ -470,9 +590,7 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) => Text(
         text,
         style: GoogleFonts.inter(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: _kTextSecondary),
+            fontSize: 12, fontWeight: FontWeight.w500, color: _kTextSecondary),
       );
 }
 
@@ -642,15 +760,13 @@ class _TimeChip extends StatelessWidget {
             Text(label,
                 style: GoogleFonts.inter(
                   fontSize: 14,
-                  fontWeight:
-                      isSelected ? FontWeight.w600 : FontWeight.w400,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                   color: isSelected ? _kAccent : _kTextPrimary,
                 )),
             if (trailingIcon != null) ...[
               const SizedBox(width: 4),
               Icon(trailingIcon,
-                  size: 16,
-                  color: isSelected ? _kAccent : _kTextSecondary),
+                  size: 16, color: isSelected ? _kAccent : _kTextSecondary),
             ],
           ],
         ),
@@ -708,60 +824,60 @@ class _CiudadDropdown extends StatelessWidget {
                       ]),
                     )
                   : isLoading
-                  ? const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 14),
-                      child: Row(children: [
-                        Icon(Icons.location_city_outlined,
-                            size: 20, color: _kTextSecondary),
-                        SizedBox(width: 10),
-                        SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: _kAccent),
-                        ),
-                        SizedBox(width: 10),
-                        Text('Cargando ciudades...',
-                            style: TextStyle(
-                                fontSize: 15, color: _kTextSecondary)),
-                      ]),
-                    )
-                  : DropdownButtonHideUnderline(
-                      child: DropdownButton<CiudadesRow>(
-                        value: value,
-                        hint: Row(children: [
-                          const Icon(Icons.location_city_outlined,
-                              size: 20, color: _kTextSecondary),
-                          const SizedBox(width: 10),
-                          Text('Selecciona una ciudad',
-                              style: GoogleFonts.inter(
-                                  fontSize: 15, color: _kTextSecondary)),
-                        ]),
-                        icon: const Icon(Icons.keyboard_arrow_down,
-                            color: _kTextSecondary, size: 20),
-                        isExpanded: true,
-                        style:
-                            GoogleFonts.inter(fontSize: 15, color: _kTextPrimary),
-                        dropdownColor: Colors.white,
-                        items: ciudades
-                            .map((c) => DropdownMenuItem<CiudadesRow>(
-                                  value: c,
-                                  child: Text(c.nombre),
-                                ))
-                            .toList(),
-                        onChanged: onChanged,
-                        selectedItemBuilder: (context) => ciudades.map((c) {
-                          return Row(children: [
-                            const Icon(Icons.location_city_outlined,
+                      ? const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 14),
+                          child: Row(children: [
+                            Icon(Icons.location_city_outlined,
                                 size: 20, color: _kTextSecondary),
-                            const SizedBox(width: 10),
-                            Text(c.nombre,
-                                style: GoogleFonts.inter(
-                                    fontSize: 15, color: _kTextPrimary)),
-                          ]);
-                        }).toList(),
-                      ),
-                    ),
+                            SizedBox(width: 10),
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: _kAccent),
+                            ),
+                            SizedBox(width: 10),
+                            Text('Cargando ciudades...',
+                                style: TextStyle(
+                                    fontSize: 15, color: _kTextSecondary)),
+                          ]),
+                        )
+                      : DropdownButtonHideUnderline(
+                          child: DropdownButton<CiudadesRow>(
+                            value: value,
+                            hint: Row(children: [
+                              const Icon(Icons.location_city_outlined,
+                                  size: 20, color: _kTextSecondary),
+                              const SizedBox(width: 10),
+                              Text('Selecciona una ciudad',
+                                  style: GoogleFonts.inter(
+                                      fontSize: 15, color: _kTextSecondary)),
+                            ]),
+                            icon: const Icon(Icons.keyboard_arrow_down,
+                                color: _kTextSecondary, size: 20),
+                            isExpanded: true,
+                            style: GoogleFonts.inter(
+                                fontSize: 15, color: _kTextPrimary),
+                            dropdownColor: Colors.white,
+                            items: ciudades
+                                .map((c) => DropdownMenuItem<CiudadesRow>(
+                                      value: c,
+                                      child: Text(c.nombre),
+                                    ))
+                                .toList(),
+                            onChanged: onChanged,
+                            selectedItemBuilder: (context) => ciudades.map((c) {
+                              return Row(children: [
+                                const Icon(Icons.location_city_outlined,
+                                    size: 20, color: _kTextSecondary),
+                                const SizedBox(width: 10),
+                                Text(c.nombre,
+                                    style: GoogleFonts.inter(
+                                        fontSize: 15, color: _kTextPrimary)),
+                              ]);
+                            }).toList(),
+                          ),
+                        ),
             ),
             if (errorText != null) ...[
               const SizedBox(height: 4),
@@ -776,9 +892,11 @@ class _CiudadDropdown extends StatelessWidget {
 }
 
 class _AddressField extends StatefulWidget {
-  const _AddressField({required this.controller, required this.hint});
+  const _AddressField(
+      {required this.controller, required this.hint, this.errorText});
   final TextEditingController controller;
   final String hint;
+  final String? errorText;
 
   @override
   State<_AddressField> createState() => _AddressFieldState();
@@ -809,12 +927,14 @@ class _AddressFieldState extends State<_AddressField> {
       decoration: InputDecoration(
         hintText: widget.hint,
         hintStyle: GoogleFonts.inter(fontSize: 15, color: _kTextSecondary),
+        errorText: widget.errorText,
         prefixIcon: const Icon(Icons.location_on_outlined,
             size: 20, color: _kTextSecondary),
         suffixIcon: hasText
             ? GestureDetector(
                 onTap: () => widget.controller.clear(),
-                child: const Icon(Icons.close, size: 18, color: _kTextSecondary),
+                child:
+                    const Icon(Icons.close, size: 18, color: _kTextSecondary),
               )
             : null,
         filled: true,
@@ -851,8 +971,8 @@ class _ComplementoField extends StatelessWidget {
         hintStyle: GoogleFonts.inter(fontSize: 15, color: _kTextSecondary),
         prefixIcon: const Padding(
           padding: EdgeInsets.only(bottom: 24),
-          child: Icon(Icons.edit_note_outlined,
-              size: 20, color: _kTextSecondary),
+          child:
+              Icon(Icons.edit_note_outlined, size: 20, color: _kTextSecondary),
         ),
         prefixIconConstraints:
             const BoxConstraints(minWidth: 48, minHeight: 48),
@@ -869,47 +989,6 @@ class _ComplementoField extends StatelessWidget {
         focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
             borderSide: const BorderSide(color: _kPrimary, width: 1.5)),
-      ),
-    );
-  }
-}
-
-class _HulpBottomNav extends StatelessWidget {
-  const _HulpBottomNav({required this.currentIndex});
-  final int currentIndex;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: _kBg,
-        boxShadow: [
-          BoxShadow(blurRadius: 12, color: Color(0x14000000), offset: Offset(0, -2)),
-        ],
-      ),
-      child: BottomNavigationBar(
-        currentIndex: currentIndex,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        selectedItemColor: _kPrimary,
-        unselectedItemColor: _kTextSecondary,
-        selectedLabelStyle:
-            GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500),
-        unselectedLabelStyle: GoogleFonts.inter(fontSize: 12),
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'Inicio'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.access_time_outlined),
-              activeIcon: Icon(Icons.access_time),
-              label: 'Solicitudes'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
-              label: 'Cuenta'),
-        ],
       ),
     );
   }

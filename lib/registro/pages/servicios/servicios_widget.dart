@@ -248,10 +248,11 @@ class _ServiciosWidgetState extends State<ServiciosWidget> {
                                   20.0, 20.0, 20.0, 0.0),
                               child: FutureBuilder<List<ServiciosRow>>(
                                 future: ServiciosTable().queryRows(
-                                  queryFn: (q) => widget.subcategoria != null
-                                      ? q.eq('subcategoria_id',
-                                          widget.subcategoria!)
-                                      : q,
+                                  queryFn: (q) => (widget.subcategoria != null
+                                          ? q.eq('subcategoria_id',
+                                              widget.subcategoria!)
+                                          : q)
+                                      .order('creado_en', ascending: false),
                                 ),
                                 builder: (context, snapshot) {
                                   if (snapshot.hasError) {
